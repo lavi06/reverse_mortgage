@@ -100,7 +100,7 @@ for i in range(int(num_borrowers)):
         age = calculate_age(dob, today)
         # age = (today - dob).days // 365
         # right.text_input("Age", value = f"{age[0]} Years {age[1]} Months", disabled = True, key = f"Age{i}")
-        right.write(f"{age[0]} Years {age[1]} Months")
+        st.write(f"{age[0]} Years {age[1]} Months")
         if age[1] >= 6 :
             age_used = age[0] + 1 
         else:

@@ -99,9 +99,9 @@ for i in range(int(num_borrowers)):
         # age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
         age = calculate_age(dob, today)
         # age = (today - dob).days // 365
-        right.text_input("Age", value = f"{age[0]} Years {age[1]} Months", disabled = True, key = f"Age{i}")
-
-        if age[1] >=6 :
+        # right.text_input("Age", value = f"{age[0]} Years {age[1]} Months", disabled = True, key = f"Age{i}")
+        right.write(f"{age[0]} Years {age[1]} Months")
+        if age[1] >= 6 :
             age_used = age[0] + 1 
         else:
             age_used = age[0]

@@ -13,9 +13,10 @@ def download_excel():
 
     url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
 
-    response = requests.get(url)
-    response.raise_for_status()
-    dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
+    # response = requests.get(url)
+    # response.raise_for_status()
+    # dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
+    dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
 
     DB_fixed_rate  = dfs["SecureEquity"]
     DB_ARM         = dfs["ARM"]
@@ -33,6 +34,8 @@ def download_excel():
     ##############################
 
     return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
+
+
 
 
 DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
@@ -87,7 +90,9 @@ for i in range(int(num_borrowers)):
 
         age = calculate_age(dob, today)
 
-        right.text_input("Age", value = f"{age[0]} Y {age[1]} M", disabled = True, key = f"Age{i}")
+        # right.text_area("Age", value = f"{age[0]} Y {age[1]} M", disabled = True, key = f"Age{i}", height=10)
+        right.badge("")
+        right.badge(f"{age[0]} Y {age[1]} M")
 
         if age[1] >=6 :
             age_used = age[0] + 1 
@@ -244,6 +249,15 @@ if home_value > 0:
                 width="content",
             )
 
+        b.metric(
+                "Eligibility",
+                result["Eligible"],
+                # delta=f"{max_temp_2015 - max_temp_2014:0.1f}C",
+                width="content",
+            )
+
+
+
         if result["Eligible"] == "✅ Yes":
             ####################################
             st.markdown("-----")
@@ -252,10 +266,13 @@ if home_value > 0:
 
             sec1,sec2 = st.columns(2)
 
-            # SecureEquity_origination = sec1.slider("Select origination fee %", min_value=0, max_value=10, value=4, step=1, format="%d%%")
-            # adj_avail_proceeds = float(avail_proceeds) * (1-SecureEquity_origination/100)
-            SecureEquity_origination = 0
-            adj_avail_proceeds = float(avail_proceeds) * (1-SecureEquity_origination/100)
+
+            HECM_origination = sec1.slider("Select origination fee %", min_value=0, max_value=10, value=0, step=1, format="%d%%")
+            adj_avail_proceeds = float(avail_proceeds) * (1-HECM_origination/100)
+
+            s1,s2 = sec2.columns(2)
+            HECM_fee = s1.number_input("Add Fee", value=0, step=1)
+            adj_avail_proceeds = adj_avail_proceeds - HECM_fee
 
             df = DB_HECM5[DB_HECM5["Offer"] == "HECM5"]
 
@@ -296,8 +313,13 @@ if home_value > 0:
 
             sec1,sec2 = st.columns(2)
 
-            SecureEquity_origination = 0
-            adj_avail_proceeds = float(avail_proceeds) * (1-SecureEquity_origination/100)
+            HECMFixed_origination = sec1.slider("Select origination fee %", min_value=0, max_value=10, value=0, step=1, format="%d%%", key = f"HECMFixed_origination")
+            adj_avail_proceeds = float(avail_proceeds) * (1-HECMFixed_origination/100)
+
+            s1,s2 = sec2.columns(2)
+            HECMFixed_fee = s1.number_input("Add Fee", value=0, step=1, key = "HECMFixed_fee")
+            adj_avail_proceeds = adj_avail_proceeds - HECMFixed_fee
+
 
             df = DB_HECM_Fixed[DB_HECM_Fixed["Offer"] == "HECM Fixed"]
 
@@ -375,8 +397,12 @@ if home_value > 0:
 
         # SecureEquity_origination = sec1.number_input("origination Fee %", value = 4)
         SecureEquity_origination = sec1.slider("Select origination fee %", min_value=0, max_value=10, value=4, step=1, format="%d%%")
-
         adj_avail_proceeds = float(avail_proceeds) * (1-SecureEquity_origination/100)
+
+        s1,s2 = sec2.columns(2)
+        SecureEquityFixed_fee = s1.number_input("Add Fee", value=0, step=1, key = "SecureEquityFixed_fee")
+        adj_avail_proceeds = adj_avail_proceeds - SecureEquityFixed_fee
+
 
         df = DB_fixed_rate[DB_fixed_rate["Offer"] == "SecureEquity Fixed Plus"]
         df = df[["Rate Type", "Rate", "Premium"]]
@@ -398,8 +424,11 @@ if home_value > 0:
 
         # SecureEquity_origination = sec1.number_input("origination Fee %", value = 4)
         SecureEquityPlus_origination = sec1.slider("Select origination fee %", min_value=0, max_value=10, value=1, step=1, format="%d%%", key = "Plus_origination")
-
         adj_avail_proceeds = float(avail_proceeds) * (1-SecureEquityPlus_origination/100)
+
+        s1,s2 = sec2.columns(2)
+        SecureEquityFixedPlus_fee = s1.number_input("Add Fee", value=0, step=1, key = "SecureEquityFixedPlus_fee")
+        adj_avail_proceeds = adj_avail_proceeds - SecureEquityFixedPlus_fee
 
         df = DB_fixed_rate[DB_fixed_rate["Offer"] == "SecureEquity Fixed"]
         df = df[["Rate Type", "Rate", "Premium"]]
@@ -421,6 +450,10 @@ if home_value > 0:
         sec1,sec2 = st.columns(2)
         ARM_origination = sec1.slider("Select origination fee %", min_value=0, max_value=10, value=1, step=1, format="%d%%", key = "ARM_origination")
         adj_avail_proceeds = float(avail_proceeds) * (1-ARM_origination/100)
+
+        s1,s2 = sec2.columns(2)
+        ARM_fee = s1.number_input("Add Fee", value=0, step=1, key = "ARM_fee")
+        adj_avail_proceeds = adj_avail_proceeds - ARM_fee
 
 
         df = DB_ARM[DB_ARM["Offer"] == "ARM"]
@@ -458,11 +491,15 @@ else:
         st.info("Enter Home Value and Loan to calculate results.")
 
 
+
+
 with config_tab:
     st.header("⚙️ Configuration Database")
 
 
     fixed_rate, arm, hemc5, hecm_fixed = st.tabs(["SecureEquity Fixed", "ARM", "HEMC5", "HECM Fixed"])
+
+
 
     with fixed_rate:
         DB_fixed_rate = st.data_editor(

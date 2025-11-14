@@ -387,6 +387,13 @@ if home_value > 0:
                 width="content",
             )
 
+        b.metric(
+                "Eligibility",
+                result["Eligible"],
+                # delta=f"{max_temp_2015 - max_temp_2014:0.1f}C",
+                width="content",
+            )
+
 
         ####################################
         st.markdown("-----")
@@ -497,8 +504,19 @@ with config_tab:
     st.header("⚙️ Configuration Database")
 
 
-    fixed_rate, arm, hemc5, hecm_fixed = st.tabs(["SecureEquity Fixed", "ARM", "HEMC5", "HECM Fixed"])
+    hecm_plf_tab, jumbo_plf_tab, fixed_rate, arm, hemc5, hecm_fixed = st.tabs(["HECM", "JUMBO","SecureEquity Fixed", "ARM", "HEMC5", "HECM Fixed"])
 
+    with hecm_plf_tab:
+        s1, s2 = st.columns(2)
+        s1.dataframe(
+            hecm_plf
+        )
+
+    with jumbo_plf_tab:
+        s1, s2 = st.columns(2)
+        s1.dataframe(
+            jumbo_plf
+        )
 
 
     with fixed_rate:

@@ -161,10 +161,10 @@ def download_excel():
 
     url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
 
-    # response = requests.get(url)
-    # response.raise_for_status()
-    # dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
-    dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
+    response = requests.get(url)
+    response.raise_for_status()
+    dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
+    # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
 
     DB_fixed_rate  = dfs["SecureEquity"]
     DB_ARM         = dfs["ARM"]

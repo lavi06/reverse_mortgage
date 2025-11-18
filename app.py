@@ -37,10 +37,24 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
 
             pdf.cell(15, 5, ln = 0, border = border, align="L")
             pdf.cell(30, 5, txt = each ,ln = 0, border = border, align="L")
-            if i == 1:
-                pdf.cell(30, 5, txt = str(applicant1[each]) ,ln = 1, border = border, align="L")
+
+            if each == "D.O.B":
+                ln = 0
             else:
-                pdf.cell(30, 5, txt = str(applicant2[each]) ,ln = 1, border = border, align="L")
+                ln = 1
+            if i == 1:
+                pdf.cell(30, 5, txt = str(applicant1[each]) ,ln = ln, border = border, align="L")
+                if each == "D.O.B":
+                    pdf.cell(30, 5, txt = "Age" ,ln = 0, border = border, align="L")
+                    pdf.cell(30, 5, txt = f"{applicant1['years']} Y | {applicant1['months']} M" ,ln = 1, border = border, align="L")
+
+            else:
+                pdf.cell(30, 5, txt = str(applicant2[each]) ,ln = ln, border = border, align="L")
+
+                if each == "D.O.B":
+                    pdf.cell(30, 5, txt = "Age" ,ln = 0, border = border, align="L")
+                    pdf.cell(30, 5, txt = f"{applicant2['years']} Y | {applicant2['months']} M" ,ln = 1, border = border, align="L")
+
 
 
     # pdf.cell(40, 5, txt = "_____________________________________________________________________________________", ln = 1, border = border)
@@ -253,7 +267,8 @@ for i in range(int(num_borrowers)):
 
             age_year  = left.number_input("Years"  ,min_value=0 ,max_value=120 ,step=1 ,format="%d")
             age_month = right.number_input("Months",min_value=0 ,max_value=12 ,step=1 ,format="%d")
-            dob = f"{age_month}/01/{age_year}"
+            # dob = f"{age_month}/01/{age_year}"
+            dob = "-"
             age = [age_year, age_month]
 
 
@@ -455,7 +470,7 @@ if home_value > 0:
             st.markdown("-----------")
 
             key = "HECM5"
-            # st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
+            st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
 
             orgin_fee_pre = 0
             fixed_fee_pre = 5000
@@ -487,7 +502,7 @@ if home_value > 0:
             else:
                 col = "90-100%"
 
-            df = df[["Margin%", col]]
+            df = df[["Rate","Margin%", col]]
             df["Margin%"] = df["Margin%"].astype(str) + "%"
             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
 
@@ -502,7 +517,7 @@ if home_value > 0:
             st.markdown("-----------")
 
             key = "HECM_Fixed"
-            # st.checkbox("Export - HECM Fixed", key = key)
+            st.checkbox("Export - HECM Fixed", key = key)
 
             orgin_fee_pre = 0
             fixed_fee_pre = 10000
@@ -544,7 +559,7 @@ if home_value > 0:
 
 
                 pdf = create_pdf(borrowers[0], borrowers[1], "HECM", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
-                                 show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m-%d/%Y"), 
+                                 show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
                                  show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
                                  st.session_state["Notes-HECM"]
 
@@ -594,7 +609,7 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "SecureEquity_Fixed_Plus"
-            # st.checkbox("Export - SecureEquity Fixed Plus", key = key)
+            st.checkbox("Export - SecureEquity Fixed Plus", key = key)
 
             orgin_fee_pre = 4
             fixed_fee_pre = 0
@@ -617,7 +632,7 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "SecureEquity_Fixed"
-            # st.checkbox("Export - SecureEquity Fixed", key = key)
+            st.checkbox("Export - SecureEquity Fixed", key = key)
 
             orgin_fee_pre = 1
             fixed_fee_pre = 0
@@ -641,7 +656,7 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "ARM"
-            # st.checkbox("Export - SecureEquity ARM", key = key)
+            st.checkbox("Export - SecureEquity ARM", key = key)
 
             orgin_fee_pre = 1
             fixed_fee_pre = 0
@@ -696,7 +711,7 @@ if home_value > 0:
                     dfname = choice.replace("_"," ")
 
                 pdf = create_pdf(borrowers[0], borrowers[1], "JUMBO", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
-                                 show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m-%d/%Y"), 
+                                 show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
                                  show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
                                  st.session_state["Notes-JUMBO"]
 

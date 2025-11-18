@@ -553,7 +553,8 @@ if home_value > 0:
                 def invoice_downloaded():
                     return
 
-                filename = f'HECM-{dfname}.pdf'
+                # filename = f'HECM-{dfname}.pdf'
+                filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
 
                 download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
 
@@ -706,7 +707,7 @@ if home_value > 0:
                     if not st.session_state.disabled:
                         st.success("Invoice Downloaded")    
 
-                filename = f'JUBMO-{dfname}.pdf'
+                filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
 
                 download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
 

@@ -478,7 +478,7 @@ if home_value > 0:
 
             key = "HECM5"
             # st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
-            st.write("HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
+            st.write("HECM Monthly Adj. 1Y CMT 5 CAP")
 
             orgin_fee_pre = 0
             fixed_fee_pre = 5000
@@ -526,7 +526,7 @@ if home_value > 0:
 
             key = "HECM_Fixed"
             # st.checkbox("Export - HECM Fixed", key = key)
-            st.write("HECM Fixed", key = key)
+            st.write("HECM Fixed")
 
             orgin_fee_pre = 0
             fixed_fee_pre = 10000
@@ -619,7 +619,7 @@ if home_value > 0:
 
             key = "SecureEquity_Fixed_Plus"
             # st.checkbox("Export - SecureEquity Fixed Plus", key = key)
-            st.write("SecureEquity Fixed Plus", key = key)
+            st.write("SecureEquity Fixed Plus")
 
             orgin_fee_pre = 4
             fixed_fee_pre = 0
@@ -642,7 +642,7 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "SecureEquity_Fixed"
-            st.write("SecureEquity Fixed", key = key)
+            st.write("SecureEquity Fixed")
             # st.checkbox("Export - SecureEquity Fixed", key = key)
 
             orgin_fee_pre = 1
@@ -667,7 +667,7 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "ARM"
-            st.write("SecureEquity ARM", key = key)
+            st.write("SecureEquity ARM")
             # st.checkbox("Export - SecureEquity ARM", key = key)
 
             orgin_fee_pre = 1

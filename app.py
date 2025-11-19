@@ -1,3 +1,10 @@
+
+import streamlit as st
+import requests
+import random
+# GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+
+
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
@@ -249,7 +256,7 @@ for i in range(int(num_borrowers)):
             left, right = st.columns(2)
 
             dob = left.date_input(
-                "Date of Birth",
+                "D.O.B (YY-MM-DD)",
                 min_value = min_date,
                 max_value = today,
                 value = date(1900, 1, 1),
@@ -404,8 +411,8 @@ if home_value > 0:
         max_fee = (df["Max Fee"].dropna().drop_duplicates().tolist())
         max_fee = max_fee[0] if max_fee else "-"
 
-        sec3.badge(f"Input Fee : {total_fee_charge:,.2f}")
-        sec3.badge(f"Max Fee : {max_fee}")
+        sec3.badge(f"Input : {total_fee_charge:,.2f}")
+        sec3.badge(f"Max : {max_fee}")
 
         try: fee_applied = min(max_fee, total_fee_charge)
         except: fee_applied = total_fee_charge 
@@ -470,7 +477,8 @@ if home_value > 0:
             st.markdown("-----------")
 
             key = "HECM5"
-            st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
+            # st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
+            st.write("HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
 
             orgin_fee_pre = 0
             fixed_fee_pre = 5000
@@ -517,7 +525,8 @@ if home_value > 0:
             st.markdown("-----------")
 
             key = "HECM_Fixed"
-            st.checkbox("Export - HECM Fixed", key = key)
+            # st.checkbox("Export - HECM Fixed", key = key)
+            st.write("HECM Fixed", key = key)
 
             orgin_fee_pre = 0
             fixed_fee_pre = 10000
@@ -609,7 +618,8 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "SecureEquity_Fixed_Plus"
-            st.checkbox("Export - SecureEquity Fixed Plus", key = key)
+            # st.checkbox("Export - SecureEquity Fixed Plus", key = key)
+            st.write("SecureEquity Fixed Plus", key = key)
 
             orgin_fee_pre = 4
             fixed_fee_pre = 0
@@ -632,7 +642,8 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "SecureEquity_Fixed"
-            st.checkbox("Export - SecureEquity Fixed", key = key)
+            st.write("SecureEquity Fixed", key = key)
+            # st.checkbox("Export - SecureEquity Fixed", key = key)
 
             orgin_fee_pre = 1
             fixed_fee_pre = 0
@@ -656,7 +667,8 @@ if home_value > 0:
             st.markdown("-----")
 
             key = "ARM"
-            st.checkbox("Export - SecureEquity ARM", key = key)
+            st.write("SecureEquity ARM", key = key)
+            # st.checkbox("Export - SecureEquity ARM", key = key)
 
             orgin_fee_pre = 1
             fixed_fee_pre = 0

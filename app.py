@@ -1,10 +1,4 @@
-
-import streamlit as st
-import requests
-import random
-# GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-
-
+import random, json
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
@@ -206,6 +200,20 @@ def download_excel():
 
 
 DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
+
+
+def get_cmt():
+
+    url = "https://api.stlouisfed.org/fred/series/observations?series_id=DGS1&api_key=ec4dad690a78e68befef631d6169ecc7&file_type=json"
+    try:
+        cef
+        res = requests.get(url)
+
+        res = res.json()
+        
+        return float(res["observations"][-1]["value"])
+    except:
+        return None 
 
 
 ######################################################
@@ -678,6 +686,15 @@ if home_value > 0:
             # ### PREPARING FEE
             total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
 
+
+            sec1,sec2, sec3, sec4 = st.columns(4)
+            cc = get_cmt()
+            if cc:
+                cmt_ = sec1.number_input("CMT Value %", value = cc, min_value=0.0, format="%.2f", key = "cmt_value")
+            else:
+                cmt_ = sec1.number_input("CMT Value %", min_value=0.0, format="%.2f", key = "cmt_value")
+
+
             ### PREPARING DB
 
             if PL_Utilised < 0.25:
@@ -690,15 +707,20 @@ if home_value > 0:
                 col = "90-100%"
 
             df = df[["Rate Type", "Margin%", col]]
+            df["Rate"] = cmt_ + df["Margin%"].astype(float)
+            df["Rate"] = df["Rate"].astype(str) + "%"
+
             df["Margin%"] = df["Margin%"].astype(str) + "%"
             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+            df = df[["Rate Type","Rate", "Margin%", col]]
 
             ### SHOWCASING DB
             df = showcase_db(df)
             df_ARM = df
 
 
-
+            ####################################
             st.header("Export PDF")
             notes = st.text_area("Notes to include in PDF", value = st.session_state["JUMBO_Notes"], key = "Notes-JUMBO")
             st.session_state["JUMBO_Notes"] = notes

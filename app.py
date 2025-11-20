@@ -206,7 +206,6 @@ def get_cmt():
 
     url = "https://api.stlouisfed.org/fred/series/observations?series_id=DGS1&api_key=ec4dad690a78e68befef631d6169ecc7&file_type=json"
     try:
-        cef
         res = requests.get(url)
 
         res = res.json()

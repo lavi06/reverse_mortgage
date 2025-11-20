@@ -112,21 +112,21 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
     pdf.cell(170, 5, txt = txt, ln = 1, border = border, align="L")
 
 
-    if df:
+    if df_name:
         txt = "Please find below the recommended Offer based on Current Market Values."
         pdf.cell(170, 5, ln = 1, border = border, align="L")
         pdf.cell(170, 5, txt = txt, ln = 1, border = border, align="L")
         pdf.cell(15, 5, ln = 1, border = border, align="L")
 
 
-    if df or len(notes) > 0:
+    if df_name or len(notes) > 0:
         pdf.add_page()
         pdf.set_xy(0, 0)
         pdf.set_font('Arial', 'B', 16)
         pdf.set_margins(20,20)
 
 
-    if df:
+    if df_name:
         ####### ADDING DF
 
         pdf.cell(170, 25, ln = 1, border = border)

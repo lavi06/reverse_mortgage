@@ -379,33 +379,28 @@ results = []
 
 for label, plf_val in [("HECM", hecm_plf_val), ("Jumbo", jumbo_plf_val)]:
 
-    principal_limit = home_value * plf_val
-
-    if principal_limit > 1150000 and label == "HECM":
-
-        results.append({
-            "Type": label,
-            "PLF": "NA",
-            "Principal Limit ($)": "NA",
-            "Total Avail Proceeds" : "NA",
-            "Available Proceeds ($)": "NA",
-            "Eligible": "NA"
-        })
-
+    if label == "HECM":
+        if home_value > 1209750:
+            principal_limit = 1209750 * plf_val
+        else:
+            principal_limit = home_value * plf_val
     else:
         principal_limit = home_value * plf_val
-        total_proceeds = principal_limit - existing_loan + line_of_credit
-        avail_proceeds = principal_limit - existing_loan
-        eligible = "✅ Yes" if principal_limit > existing_loan else "❌ No"
 
-        results.append({
-            "Type": label,
-            "PLF": round(plf_val, 3),
-            "Principal Limit ($)"   : principal_limit,
-            "Total Avail Proceeds"  : total_proceeds,
-            "Available Proceeds ($)": avail_proceeds,
-            "Eligible": eligible
-        })
+    total_proceeds = principal_limit - existing_loan + line_of_credit
+    avail_proceeds = principal_limit - existing_loan
+
+
+    eligible = "✅ Yes" if principal_limit > existing_loan else "❌ No"
+
+    results.append({
+        "Type": label,
+        "PLF": plf_val,
+        "Principal Limit ($)"   : principal_limit,
+        "Total Avail Proceeds"  : total_proceeds,
+        "Available Proceeds ($)": avail_proceeds,
+        "Eligible": eligible
+    })
 
 
 
@@ -478,7 +473,7 @@ if home_value > 0:
             PL_Utilised = 0
 
 
-        a.metric("PLF %", show_value(result['PLF'], "%"), width="content")
+        a.metric("PLF %", f"{result['PLF']*100:.4f}%", width="content")
         b.metric("Principal Limit $", show_value(principal_limit), width="content")
         c.metric("Prev. Line of Credit $", show_value(line_of_credit), width="content")
 
@@ -565,42 +560,50 @@ if home_value > 0:
 
 
 
-            st.header("Export PDF")
-            notes = st.text_area("Notes to include in PDF", value = st.session_state["HECM_Notes"], key = "Notes-HECM")
-            st.session_state["HECM_Notes"] = notes
+        st.header("Export PDF")
+        notes = st.text_area("Notes to include in PDF", value = st.session_state["HECM_Notes"], key = "Notes-HECM")
+        st.session_state["HECM_Notes"] = notes
 
+
+        if result["Eligible"] == "✅ Yes":
 
             choice = st.radio(
                 "Select Offer to Escape:",
                 ["HECM Monthly Adj. 1Y CMT 5 CAP", "HECM Fixed"]
             )
-
-            left, right,a,b = st.columns(4)
-            generate = left.button("Export PDF", key='generate_hecm')
-
-            if generate:
-                if choice == "HECM Monthly Adj. 1Y CMT 5 CAP":
-                    df = df_hecm5
-                    dfname = choice.replace("_"," ")
-                elif choice == "HECM Fixed":
-                    df = df_hecm_fixed
-                    dfname = choice.replace("_"," ")
+        else:
+            choice = None
 
 
-                pdf = create_pdf(borrowers[0], borrowers[1], "HECM", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
-                                 show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
-                                 show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
-                                 st.session_state["Notes-HECM"]
+        left, right,a,b = st.columns(4)
+        generate = left.button("Export PDF", key='generate_hecm')
 
-                    )
+        if generate:
+            if choice == "HECM Monthly Adj. 1Y CMT 5 CAP":
+                df = df_hecm5
+                dfname = choice.replace("_"," ")
+            elif choice == "HECM Fixed":
+                df = df_hecm_fixed
+                dfname = choice.replace("_"," ")
+            else:
+                df = None
+                dfname = None
 
-                def invoice_downloaded():
-                    return
 
-                # filename = f'HECM-{dfname}.pdf'
-                filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
+            pdf = create_pdf(borrowers[0], borrowers[1], "HECM", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
+                             show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
+                             show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
+                             st.session_state["Notes-HECM"], result["Eligible"]
 
-                download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
+                )
+
+            def invoice_downloaded():
+                return
+
+            # filename = f'HECM-{dfname}.pdf'
+            filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
+
+            download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
 
 
     with Jumbo_tab:

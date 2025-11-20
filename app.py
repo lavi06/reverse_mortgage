@@ -7,7 +7,7 @@ import requests
 from fpdf import FPDF
 
 
-def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, increase, PLU, df_name, df, _date, home_value, outstanding_loan, line_of_credit, current_interest, notes):
+def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, increase, PLU, df_name, df, _date, home_value, outstanding_loan, line_of_credit, current_interest, notes, eligible):
     border = 0
 
     pdf = FPDF(orientation = 'P', unit = 'mm', format='A4')
@@ -104,59 +104,70 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
 
     pdf.set_font('Arial', "B", 12)
 
-    txt = f"Congrats! Applicant is Eligible for a {loan_type} Loan of {PL}."
+    if "no" in eligible.lower():
+        txt = f"Sorry! Applicant is Not Eligible for a {loan_type} Loan."
+    else:             
+        txt = f"Congrats! Applicant is Eligible for a {loan_type} Loan of {PL}."
     pdf.cell(170, 5, ln = 1, border = border, align="L")
     pdf.cell(170, 5, txt = txt, ln = 1, border = border, align="L")
 
-    txt = "Please find below the recommended Offer based on Current Market Values."
-    pdf.cell(170, 5, ln = 1, border = border, align="L")
-    pdf.cell(170, 5, txt = txt, ln = 1, border = border, align="L")
-    pdf.cell(15, 5, ln = 1, border = border, align="L")
 
-    ####### ADDING DF
-
-    pdf.add_page()
-    pdf.set_xy(0, 0)
-    pdf.set_font('Arial', 'B', 16)
-    pdf.set_margins(20,20)
+    if df:
+        txt = "Please find below the recommended Offer based on Current Market Values."
+        pdf.cell(170, 5, ln = 1, border = border, align="L")
+        pdf.cell(170, 5, txt = txt, ln = 1, border = border, align="L")
+        pdf.cell(15, 5, ln = 1, border = border, align="L")
 
 
-    pdf.cell(170, 25, ln = 1, border = border)
-    pdf.cell(170, 5, txt = df_name, ln = 1, border = border, align="L")
-    pdf.cell(170, 5, ln = 1, border = border, align="L")
-
-    line_height = pdf.font_size * 1
-    page_width = pdf.w - 2 * pdf.l_margin  # printable width
-    col_width = page_width / max(1, len(df.columns))
+    if df or len(notes) > 0:
+        pdf.add_page()
+        pdf.set_xy(0, 0)
+        pdf.set_font('Arial', 'B', 16)
+        pdf.set_margins(20,20)
 
 
-    pdf.cell(col_width, line_height, ln = 1, border = border)
+    if df:
+        ####### ADDING DF
 
-    pdf.set_font("Arial", "B", 8)
-    for col in df.columns:
-        pdf.cell(col_width, line_height, str(col), border=1, align = "C")
+        pdf.cell(170, 25, ln = 1, border = border)
+        pdf.cell(170, 5, txt = df_name, ln = 1, border = border, align="L")
+        pdf.cell(170, 5, ln = 1, border = border, align="L")
 
-    pdf.ln(line_height)
+        line_height = pdf.font_size * 1
+        page_width = pdf.w - 2 * pdf.l_margin  # printable width
+        col_width = page_width / max(1, len(df.columns))
 
-    pdf.set_font("Arial", size=8)
-    avg_char_w = pdf.get_string_width("a") or 1
-    max_chars = max(1, int((col_width - 2) / avg_char_w))
 
-    for _, row in df.iterrows():
-        for item in row:
-            s = str(item)
-            if len(s) > max_chars:
-                s = s[:max(0, max_chars - 3)] + "..."
-            pdf.cell(col_width, line_height, s, border=1, align = "C")
+        pdf.cell(col_width, line_height, ln = 1, border = border)
+
+        pdf.set_font("Arial", "B", 8)
+        for col in df.columns:
+            pdf.cell(col_width, line_height, str(col), border=1, align = "C")
+
         pdf.ln(line_height)
 
+        pdf.set_font("Arial", size=8)
+        avg_char_w = pdf.get_string_width("a") or 1
+        max_chars = max(1, int((col_width - 2) / avg_char_w))
 
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(170, 25, ln = 1, border = border)
-    pdf.cell(170, 10, txt = "NOTES", ln = 1, border = border)
+        for _, row in df.iterrows():
+            for item in row:
+                s = str(item)
+                if len(s) > max_chars:
+                    s = s[:max(0, max_chars - 3)] + "..."
+                pdf.cell(col_width, line_height, s, border=1, align = "C")
+            pdf.ln(line_height)
 
-    pdf.set_font("Arial", "B", 8)
-    pdf.multi_cell(170, 25, txt = notes, border = 1)
+
+    if len(notes) > 0 :
+
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(170, 25, ln = 1, border = border)
+        pdf.cell(170, 10, txt = "NOTES", ln = 1, border = border)
+
+        pdf.set_font("Arial", "B", 8)
+        pdf.multi_cell(170, 25, txt = notes, border = 1)
+
 
     pdf.output('HomeLoanOffer.pdf', 'F')
 
@@ -209,7 +220,7 @@ def get_cmt():
         res = requests.get(url)
 
         res = res.json()
-        
+
         return float(res["observations"][-1]["value"])
     except:
         return None 
@@ -368,7 +379,9 @@ results = []
 
 for label, plf_val in [("HECM", hecm_plf_val), ("Jumbo", jumbo_plf_val)]:
 
-    if home_value > 1150000 and label == "HECM":
+    principal_limit = home_value * plf_val
+
+    if principal_limit > 1150000 and label == "HECM":
 
         results.append({
             "Type": label,
@@ -720,44 +733,54 @@ if home_value > 0:
 
 
             ####################################
-            st.header("Export PDF")
-            notes = st.text_area("Notes to include in PDF", value = st.session_state["JUMBO_Notes"], key = "Notes-JUMBO")
-            st.session_state["JUMBO_Notes"] = notes
+
+
+        st.header("Export PDF")
+        notes = st.text_area("Notes to include in PDF", value = st.session_state["JUMBO_Notes"], key = "Notes-JUMBO")
+        st.session_state["JUMBO_Notes"] = notes
+
+        if result["Eligible"] == "✅ Yes":
 
             choice = st.radio(
                 "Select Offer to Escape:",
                 ["SecureEquity_Fixed_Plus", "SecureEquity_Fixed", "SecureEquity_ARM"]
             )
+        else:
+            choice = None
 
-            left, right,a,b = st.columns(4)
-            generate = left.button("Export PDF", key='generate_jumbo')
+        left, right,a,b = st.columns(4)
+        generate = left.button("Export PDF", key='generate_jumbo')
 
-            if generate:
-                if choice == "SecureEquity_Fixed_Plus":
-                    df = df_SecureEquity_Fixed_Plus
-                    dfname = choice.replace("_"," ")
-                elif choice == "SecureEquity_Fixed":
-                    df = df_SecureEquity_Fixed
-                    dfname = choice.replace("_"," ")
-                elif choice == "SecureEquity_ARM":
-                    df = df_ARM
-                    dfname = choice.replace("_"," ")
+        if generate:
+            if choice == "SecureEquity_Fixed_Plus":
+                df = df_SecureEquity_Fixed_Plus
+                dfname = choice.replace("_"," ")
+            elif choice == "SecureEquity_Fixed":
+                df = df_SecureEquity_Fixed
+                dfname = choice.replace("_"," ")
+            elif choice == "SecureEquity_ARM":
+                df = df_ARM
+                dfname = choice.replace("_"," ")
+            else:
+                df = None
+                dfname = None
 
-                pdf = create_pdf(borrowers[0], borrowers[1], "JUMBO", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
-                                 show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
-                                 show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
-                                 st.session_state["Notes-JUMBO"]
 
-                    )
+            pdf = create_pdf(borrowers[0], borrowers[1], "JUMBO", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
+                             show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
+                             show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
+                             st.session_state["Notes-JUMBO"], result["Eligible"]
 
-                def invoice_downloaded():
-                    return
-                    if not st.session_state.disabled:
-                        st.success("Invoice Downloaded")    
+                )
 
-                filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
+            def invoice_downloaded():
+                return
+                if not st.session_state.disabled:
+                    st.success("Invoice Downloaded")    
 
-                download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
+            filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
+
+            download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
 
 
 else:

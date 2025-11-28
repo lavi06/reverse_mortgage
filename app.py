@@ -1,4 +1,4 @@
-import random, json
+import random, json, re
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
@@ -183,34 +183,44 @@ st.set_page_config(page_title="Reverse Mortgage Calculator", layout="wide")
 
 
 
-def download_excel():
+# def download_excel():
 
-    url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
+#     url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
 
-    response = requests.get(url)
-    response.raise_for_status()
-    dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
-    # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
+#     response = requests.get(url)
+#     response.raise_for_status()
+#     dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
+#     # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
 
-    DB_fixed_rate  = dfs["SecureEquity"]
-    DB_ARM         = dfs["ARM"]
-    DB_HECM5       = dfs["HECM"]
-    DB_HECM_Fixed  = dfs["HECM_Fixed"]
+#     DB_fixed_rate  = dfs["SecureEquity"]
+#     DB_ARM         = dfs["ARM"]
+#     DB_HECM5       = dfs["HECM"]
+#     DB_HECM_Fixed  = dfs["HECM_Fixed"]
 
-    ##############################
-    # pfl_chart = pd.read_excel("PFL.xlsx")
-    pfl_chart = dfs["PLF"]
-    hecm_plf = pfl_chart[["AGE", "HECM"]]
-    hecm_plf.columns = ["AGE", "PLF"]
+#     ##############################
+#     # pfl_chart = pd.read_excel("PFL.xlsx")
+#     pfl_chart = dfs["PLF"]
+#     hecm_plf = pfl_chart[["AGE", "HECM"]]
+#     hecm_plf.columns = ["AGE", "PLF"]
 
-    jumbo_plf = pfl_chart[["AGE", "Jumbo"]]
-    jumbo_plf.columns = ["AGE", "PLF"]
-    ##############################
+#     jumbo_plf = pfl_chart[["AGE", "Jumbo"]]
+#     jumbo_plf.columns = ["AGE", "PLF"]
+#     ##############################
 
-    return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
+#     return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
 
 
-DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
+# DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
+
+
+master_moom_file = pd.read_excel("MOOM.xlsx",  sheet_name=None)
+
+
+config = master_moom_file["Config"]
+plf_master = master_moom_file["PLF"]
+
+
+
 
 
 def get_cmt():
@@ -255,7 +265,6 @@ def calculate_age(dob, today=None):
         months += 12
 
     return years, months
-
 
 
 for i in range(int(num_borrowers)):
@@ -330,7 +339,6 @@ for i in range(int(num_borrowers)):
             })
 
 
-
 # # --- Calculate youngest borrower's age ---
 if borrowers:
     youngest_borrower = min(borrowers, key=lambda x: x["age_used"])
@@ -343,13 +351,11 @@ if borrowers:
     borrower_age = youngest_borrower["age_used"]
 
 
-
 # # --- Home details ---
 # st.header("🏡 Property Details")
 
 left, right = st.columns(2)
 home_value    = left.number_input("Home Value ($)", min_value=0.0, format="%.2f")
-
 existing_loan = right.number_input("Outstanding Loan ($)", min_value=0.0, format="%.2f")
 
 left, right = st.columns(2)
@@ -358,85 +364,133 @@ current_interest = right.number_input("Current interest Rate $", min_value=0.0 ,
 
 
 
-# --- Helper to get PLF from chart ---
-def get_plf(plf_df, age):
-    eligible_ages = plf_df["AGE"].values
-    # If age less than min or greater than max, clamp
-    if age < eligible_ages.min():
-        age = eligible_ages.min()
-    elif age > eligible_ages.max():
-        age = eligible_ages.max()
 
-    return float(plf_df.loc[plf_df["AGE"] <= age, "PLF"].iloc[-1])
+config = (config.set_index("Name").to_dict(orient="index"))
 
-# --- Compute Results ---
-hecm_plf_val = get_plf(hecm_plf, borrower_age)
-jumbo_plf_val = get_plf(jumbo_plf, borrower_age)
+
+# tabs = []
+# for i in list(config.keys()):
+#     tabs.append(i)
 
 
 
-results = []
+###########################################################################
+###########################################################################
 
-for label, plf_val in [("HECM", hecm_plf_val), ("Jumbo", jumbo_plf_val)]:
-
-    if label == "HECM":
-        if home_value > 1209750:
-            principal_limit = 1209750 * plf_val
+def show_value(value,sign = None):
+    try:
+        if sign == "%":
+            return f"{value*100:.2f}%"
+        elif sign == "$":
+            return f"{value:,.0f} $"
         else:
-            principal_limit = home_value * plf_val
-    else:
-        principal_limit = home_value * plf_val
+            return f"{value:,.0f}"
+    except:
+        return value
+
+def prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre):
+
+    sec1,sec2, sec3, sec4 = st.columns(4)
+
+    origination_fee = sec1.slider("Select origination fee %", min_value=0, max_value = 10, value = orgin_fee_pre, step=1, format="%d%%", key = f"{key}_origination")
+    fixed_fee       = sec2.number_input("Fixed Fee", value = fixed_fee_pre, step=1, key = f"{key}_fixed_fee")
+
+    total_fee_charge = (existing_loan * origination_fee/100) + fixed_fee
+
+    max_fee = (df["Max Fee"].dropna().drop_duplicates().tolist())
+    max_fee = max_fee[0] if max_fee else "-"
+
+    sec3.badge(f"Input : {total_fee_charge:,.2f}")
+    sec3.badge(f"Max : {max_fee}")
+
+    try: fee_applied = min(max_fee, total_fee_charge)
+    except: fee_applied = total_fee_charge 
+
+    sec1.write(f"Applied Fee : {fee_applied:,.2f}")
+
+    adj_avail_proceeds = avail_proceeds - fee_applied
+
+    return total_fee_charge, fee_applied, adj_avail_proceeds
+
+###########################################################################
+###########################################################################
+
+
+a,b,c,d = st.columns(4)
+selected_program = a.selectbox("Choose a Program", config.keys())
+
+
+# plf_value = plf_master.loc[plf_master["AGE"] == borrower_age, selected_program].iloc[0]
+rows = plf_master.loc[plf_master["AGE"] == borrower_age, selected_program]
+
+if rows.empty:
+    plf_value = None
+else:
+    plf_value = rows.iloc[0]
+
+if plf_value:
+    # tab_selected = config[selected_program]["Tab"]
+
+    st.markdown("-----------")
+
+    a,b,c,d = st.columns(4)
+
+    principal_limit = home_value * plf_value
 
     total_proceeds = principal_limit - existing_loan + line_of_credit
     avail_proceeds = principal_limit - existing_loan
 
 
+    try:
+        PL_Utilised = (1 - float(avail_proceeds)/float(principal_limit))
+    except:
+        PL_Utilised = 0
+
     eligible = "✅ Yes" if principal_limit > existing_loan else "❌ No"
 
-    results.append({
-        "Type": label,
-        "PLF": plf_val,
-        "Principal Limit ($)"   : principal_limit,
-        "Total Avail Proceeds"  : total_proceeds,
-        "Available Proceeds ($)": avail_proceeds,
-        "Eligible": eligible
-    })
+
+    a.metric("PLF %", f"{plf_value*100:.2f}%", width="content")
+    b.metric("Principal Limit $", show_value(principal_limit), width="content")
+    c.metric("Prev. Line of Credit $", show_value(line_of_credit), width="content")
+
+
+    if "Adj. Proceeds" not in st.session_state:
+        st.session_state["Adj. Proceeds"] = None
+
+    try: delta = st.session_state["Adj. Proceeds"] - line_of_credit
+    except: delta = None
+
+    d.metric("Current Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
+
+    a,b,c,d = st.columns(4)
+    a.metric("PL_Utilised %", show_value(PL_Utilised, "%"), width="content")
+    b.metric("Eligibility"  , show_value(eligible)        , width="content")
+
+    st.write("")
+
+    config_selected_program = config[selected_program]
+
+    df_selected = master_moom_file[config_selected_program["Tab"]]
+    df_selected = df_selected[df_selected["Offer"] == config_selected_program["Offertype"]]
+
+
+    orgin_fee_pre = config_selected_program["Origination Fee%"]
+    fixed_fee_pre = config_selected_program["Fixed Fee"]
+
+
+    # ### PREPARING FEE
+    total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df_selected, "11", orgin_fee_pre, fixed_fee_pre)
+    st.session_state["Adj. Proceeds"] = adj_avail_proceeds
 
 
 
-if "HECM_Notes" not in st.session_state:
-    st.session_state["HECM_Notes"] = ""    
-if "JUMBO_Notes" not in st.session_state:
-    st.session_state["JUMBO_Notes"] = ""    
+    cols_to_drop = ["Offer", "Min_PL", "Min Fee", "Max Fee"]
+    for each in cols_to_drop:
+        try:
+            df_selected = df_selected.drop(columns = [each])
+        except:
+            pass
 
-
-HECM_tab, Jumbo_tab, config_tab = st.tabs(["HECM", "JUMBO", "Config"])
-
-if home_value > 0:
-
-    def prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre):
-
-        sec1,sec2, sec3, sec4 = st.columns(4)
-
-        origination_fee = sec1.slider("Select origination fee %", min_value=0, max_value = 10, value = orgin_fee_pre, step=1, format="%d%%", key = f"{key}_origination")
-        fixed_fee       = sec2.number_input("Fixed Fee", value = fixed_fee_pre, step=1, key = f"{key}_fixed_fee")
-
-        total_fee_charge = (avail_proceeds*origination_fee/100) + fixed_fee
-
-        max_fee = (df["Max Fee"].dropna().drop_duplicates().tolist())
-        max_fee = max_fee[0] if max_fee else "-"
-
-        sec3.badge(f"Input : {total_fee_charge:,.2f}")
-        sec3.badge(f"Max : {max_fee}")
-
-        try: fee_applied = min(max_fee, total_fee_charge)
-        except: fee_applied = total_fee_charge 
-
-        sec1.write(f"Applied Fee : {fee_applied:,.2f}")
-
-        adj_avail_proceeds = avail_proceeds - fee_applied
-
-        return total_fee_charge, fee_applied, adj_avail_proceeds
 
     def showcase_db(df):
         product_data = df.to_dict(orient="records")
@@ -446,402 +500,582 @@ if home_value > 0:
 
         return df
 
-    def show_value(value,sign = None):
-        try:
-            if sign == "%":
-                return f"{value*100:.2f}%"
-            elif sign == "$":
-                return f"{value:,.0f} $"
-            else:
-                return f"{value:,.0f}"
-        except:
-            return value
 
-
-    with HECM_tab:
-
-        result = results[0]
-        a,b,c,d = st.columns(4)
-
-        principal_limit = result["Principal Limit ($)"]
-        total_proceeds  = result["Total Avail Proceeds"]
-        avail_proceeds  = result["Available Proceeds ($)"]
+    def get_range_columns(df):
+        """Return all columns that match format like 0-10%, 10-20, 20-50% etc."""
+        range_cols = []
+        pattern = re.compile(r"(\d+)-(\d+)%?$")   # supports both 10-20 and 10-20%
         
-        try:
-            PL_Utilised = (1 - float(avail_proceeds)/float(principal_limit))
-        except:
-            PL_Utilised = 0
+        for col in df.columns:
+            if pattern.match(col):
+                range_cols.append(col)
+        return range_cols
 
 
-        a.metric("PLF %", f"{result['PLF']*100:.4f}%", width="content")
-        b.metric("Principal Limit $", show_value(principal_limit), width="content")
-        c.metric("Prev. Line of Credit $", show_value(line_of_credit), width="content")
-
-        try: delta = avail_proceeds - line_of_credit
-        except: delta = None
-        d.metric("Current Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
-        
-        a,b,c,d = st.columns(4)
-        a.metric( "PL_Utilised %", show_value(PL_Utilised, "%"), width="content")
-        b.metric("Eligibility",show_value(result["Eligible"]), width="content")
+    def get_matching_range_column(range_cols, plf_value):
+        """Return the column name whose numeric range contains plf_value."""
+        for col in range_cols:
+            start, end = map(int, re.findall(r"(\d+)-(\d+)", col)[0])
+            if start <= plf_value < end:
+                return col
+        return None
 
 
+    def filter_df_on_plf(df, plf_value):
+        """
+        Returns:
+            - matching column
+            - list of all range columns
+            - df with only the matching column kept
+        """
+        range_cols = get_range_columns(df)
+        match_col = get_matching_range_column(range_cols, plf_value)
 
-        if result["Eligible"] == "✅ Yes":
-            ####################################
-            st.markdown("-----------")
+        if match_col is None:
+            raise ValueError(f"No matching PLF range for value {plf_value}")
 
-            key = "HECM5"
-            # st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
-            st.write("HECM Monthly Adj. 1Y CMT 5 CAP")
+        # Keep only the matching range column
+        filtered_df = df.drop(columns=[c for c in range_cols if c != match_col])
 
-            orgin_fee_pre = 0
-            fixed_fee_pre = 5000
-
-            df = DB_HECM5[DB_HECM5["Offer"] == key]
-
-            # ### PREPARING FEE
-            total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
-
-            ### PREPARING DB
-            if PL_Utilised <= 0.1:
-                col = "0-10%"
-            elif PL_Utilised <= 0.2:
-                col = "10-20%"
-            elif PL_Utilised <= 0.3:
-                col = "20-30%"
-            elif PL_Utilised <= 0.4:
-                col = "30-40%"
-            elif PL_Utilised <= 0.5:
-                col = "40-50%"
-            elif PL_Utilised <= 0.6:
-                col = "50-60%"
-            elif PL_Utilised <= 0.7:
-                col = "60-70%"
-            elif PL_Utilised <= 0.8:
-                col = "70-80%"
-            elif PL_Utilised <= 0.9:
-                col = "80-90%"
-            else:
-                col = "90-100%"
-
-            df = df[["Rate","Margin%", col]]
-            df["Margin%"] = df["Margin%"].astype(str) + "%"
-            df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
-
-            ### SHOWCASING DB
-            df = showcase_db(df)
-            df_hecm5 = df
-
-
-            ####################################
-            ####################################
-
-            st.markdown("-----------")
-
-            key = "HECM_Fixed"
-            # st.checkbox("Export - HECM Fixed", key = key)
-            st.write("HECM Fixed")
-
-            orgin_fee_pre = 0
-            fixed_fee_pre = 10000
-
-            df = DB_HECM_Fixed[DB_HECM_Fixed["Offer"] == key]
-
-            # ### PREPARING FEE
-            total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
-
-            df = df[["Extra Fee", "Rate", "Premium"]]
-            df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
-
-            ### SHOWCASING DB
-            df = showcase_db(df)
-            df_hecm_fixed = df
+        return match_col, range_cols, filtered_df
 
 
 
-        st.header("Export PDF")
-        notes = st.text_area("Notes to include in PDF", value = st.session_state["HECM_Notes"], key = "Notes-HECM")
-        st.session_state["HECM_Notes"] = notes
+    df = df_selected
+    match, ranges, new_df = filter_df_on_plf(df, plf_value = plf_value*100)
+
+    # df["Margin%"] = df["Margin%"].astype(str) + "%"
+    new_df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+    ### SHOWCASING DB
+    df = showcase_db(new_df)
 
 
-        if result["Eligible"] == "✅ Yes":
 
-            choice = st.radio(
-                "Select Offer to Escape:",
-                ["HECM Monthly Adj. 1Y CMT 5 CAP", "HECM Fixed"]
+    st.header("Export PDF")
+    notes = st.text_area("Notes to include in PDF")
+
+    left, right,a,b = st.columns(4)
+    generate = left.button("Export PDF", key='generate_jumbo')
+
+    if generate:
+
+        pdf = create_pdf(borrowers[0], borrowers[1], selected_program, f"{plf_value*100:.2f}%", show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
+                         show_value(delta, "$"), show_value(PL_Utilised, "%"), selected_program, df, today.strftime("%m/%d/%Y"), 
+                         show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
+                         notes, eligible
+
             )
-        else:
-            choice = None
 
+        def invoice_downloaded():
+            return
+            if not st.session_state.disabled:
+                st.success("Invoice Downloaded")    
 
-        left, right,a,b = st.columns(4)
-        generate = left.button("Export PDF", key='generate_hecm')
+        filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{selected_program}.pdf'
 
-        if generate:
-            if choice == "HECM Monthly Adj. 1Y CMT 5 CAP":
-                df = df_hecm5
-                dfname = choice.replace("_"," ")
-            elif choice == "HECM Fixed":
-                df = df_hecm_fixed
-                dfname = choice.replace("_"," ")
-            else:
-                df = None
-                dfname = None
-
-
-            pdf = create_pdf(borrowers[0], borrowers[1], "HECM", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
-                             show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
-                             show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
-                             st.session_state["Notes-HECM"], result["Eligible"]
-
-                )
-
-            def invoice_downloaded():
-                return
-
-            # filename = f'HECM-{dfname}.pdf'
-            filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
-
-            download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
-
-
-    with Jumbo_tab:
-
-        result = results[1]
-        a,b,c,d = st.columns(4)
-
-        principal_limit = result["Principal Limit ($)"]
-        total_proceeds  = result["Total Avail Proceeds"]
-        avail_proceeds  = result["Available Proceeds ($)"]
-        # eligible = "✅ Yes" if principal_limit > existing_loan else "❌ No"
-        
-        try:
-            PL_Utilised = (1 - float(avail_proceeds)/float(principal_limit))
-        except:
-            PL_Utilised = 0
-
-
-        a.metric("PLF %", show_value(result['PLF'], "%"), width="content")
-        b.metric("Principal Limit $", show_value(principal_limit), width="content")
-        c.metric("Prev. Line of Credit $", show_value(line_of_credit), width="content")
-
-        try: delta = avail_proceeds - line_of_credit
-        except: delta = None
-        d.metric("Current Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
-        
-        a,b,c,d = st.columns(4)
-        a.metric( "PL_Utilised %", show_value(PL_Utilised, "%"), width="content")
-        b.metric("Eligibility",show_value(result["Eligible"]), width="content")
-
-
-        ####################################
-        if result["Eligible"] == "✅ Yes":
-
-            st.markdown("-----")
-
-            key = "SecureEquity_Fixed_Plus"
-            # st.checkbox("Export - SecureEquity Fixed Plus", key = key)
-            st.write("SecureEquity Fixed Plus")
-
-            orgin_fee_pre = 4
-            fixed_fee_pre = 0
-
-            df = DB_fixed_rate[DB_fixed_rate["Offer"] == key]
-
-            # ### PREPARING FEE
-            total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
-
-            ### PREPARING DB
-            df = df[["Rate Type", "Rate", "Premium"]]
-            df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
-
-            ### SHOWCASING DB
-            df = showcase_db(df)
-            df_SecureEquity_Fixed = df
-
-
-            ####################################
-            st.markdown("-----")
-
-            key = "SecureEquity_Fixed"
-            st.write("SecureEquity Fixed")
-            # st.checkbox("Export - SecureEquity Fixed", key = key)
-
-            orgin_fee_pre = 1
-            fixed_fee_pre = 0
-
-            df = DB_fixed_rate[DB_fixed_rate["Offer"] == key]
-
-            # ### PREPARING FEE
-            total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
-
-            ### PREPARING DB
-            df = df[["Rate Type", "Rate", "Premium"]]
-
-            df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
-
-            ### SHOWCASING DB
-            df = showcase_db(df)
-            df_SecureEquity_Fixed_Plus = df
-
-
-            ####################################
-            st.markdown("-----")
-
-            key = "ARM"
-            st.write("SecureEquity ARM")
-            # st.checkbox("Export - SecureEquity ARM", key = key)
-
-            orgin_fee_pre = 1
-            fixed_fee_pre = 0
-
-            df = DB_ARM[DB_ARM["Offer"] == key]
-
-            # ### PREPARING FEE
-            total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
-
-
-            sec1,sec2, sec3, sec4 = st.columns(4)
-            cc = get_cmt()
-            if cc:
-                cmt_ = sec1.number_input("CMT Value %", value = cc, min_value=0.0, format="%.2f", key = "cmt_value")
-            else:
-                cmt_ = sec1.number_input("CMT Value %", min_value=0.0, format="%.2f", key = "cmt_value")
-
-
-            ### PREPARING DB
-
-            if PL_Utilised < 0.25:
-                col = "0-25%"
-            elif PL_Utilised <= 0.8:
-                col = "25-80%"
-            elif PL_Utilised <= 0.9:
-                col = "80-90%"
-            else:
-                col = "90-100%"
-
-            df = df[["Rate Type", "Margin%", col]]
-            df["Rate"] = cmt_ + df["Margin%"].astype(float)
-            df["Rate"] = df["Rate"].astype(str) + "%"
-
-            df["Margin%"] = df["Margin%"].astype(str) + "%"
-            df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
-
-            df = df[["Rate Type","Rate", "Margin%", col]]
-
-            ### SHOWCASING DB
-            df = showcase_db(df)
-            df_ARM = df
-
-
-            ####################################
-
-
-        st.header("Export PDF")
-        notes = st.text_area("Notes to include in PDF", value = st.session_state["JUMBO_Notes"], key = "Notes-JUMBO")
-        st.session_state["JUMBO_Notes"] = notes
-
-        if result["Eligible"] == "✅ Yes":
-
-            choice = st.radio(
-                "Select Offer to Escape:",
-                ["SecureEquity_Fixed_Plus", "SecureEquity_Fixed", "SecureEquity_ARM"]
-            )
-        else:
-            choice = None
-
-        left, right,a,b = st.columns(4)
-        generate = left.button("Export PDF", key='generate_jumbo')
-
-        if generate:
-            if choice == "SecureEquity_Fixed_Plus":
-                df = df_SecureEquity_Fixed_Plus
-                dfname = choice.replace("_"," ")
-            elif choice == "SecureEquity_Fixed":
-                df = df_SecureEquity_Fixed
-                dfname = choice.replace("_"," ")
-            elif choice == "SecureEquity_ARM":
-                df = df_ARM
-                dfname = choice.replace("_"," ")
-            else:
-                df = None
-                dfname = None
-
-
-            pdf = create_pdf(borrowers[0], borrowers[1], "JUMBO", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
-                             show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
-                             show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
-                             st.session_state["Notes-JUMBO"], result["Eligible"]
-
-                )
-
-            def invoice_downloaded():
-                return
-                if not st.session_state.disabled:
-                    st.success("Invoice Downloaded")    
-
-            filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
-
-            download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
+        download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
 
 
 else:
-    with HECM_tab:
-        st.info("Enter Home Value and Loan to calculate results.")
-    with Jumbo_tab:
-        st.info("Enter Home Value and Loan to calculate results.")
+    st.write("AGE is Out of Bounds")
+
+
+# st.write(df_selected)
+
+
+
+
+# st.write(tab_selected)
+# st.write(plf_value)
 
 
 
 
 
-with config_tab:
-    st.header("⚙️ Configuration Database")
 
-    hecm_plf_tab, jumbo_plf_tab, fixed_rate, arm, hemc5, hecm_fixed = st.tabs(["HECM", "JUMBO","SecureEquity Fixed", "ARM", "HEMC5", "HECM Fixed"])
 
-    with hecm_plf_tab:
-        s1, s2 = st.columns(2)
-        s1.dataframe(
-            hecm_plf
-        )
+# for i,t1 in enumerate(tab_names,0):
+#     print(tabs[i])
+#     input("----")
+#     # plf_chart = 
 
-    with jumbo_plf_tab:
-        s1, s2 = st.columns(2)
-        s1.dataframe(
-            jumbo_plf
-        )
+#     eligible_ages = plf_df["AGE"].values
+#     # If age less than min or greater than max, clamp
+#     if age < eligible_ages.min():
+#         age = eligible_ages.min()
+#     elif age > eligible_ages.max():
+#         age = eligible_ages.max()
 
-    with fixed_rate:
-        DB_fixed_rate = st.data_editor(
-            DB_fixed_rate,
-            num_rows="dynamic",
-            use_container_width=True,
-        )
+#     float(plf_df.loc[plf_df["AGE"] <= age, "PLF"].iloc[-1])
 
-    with arm:
-        DB_ARM = st.data_editor(
-            DB_ARM,
-            num_rows="dynamic",
-            use_container_width=True,
-        )
 
-    with hemc5:
-        DB_HEMC5 = st.data_editor(
-            DB_HECM5,
-            num_rows="dynamic",
-            use_container_width=True,
-        )
 
-    with hecm_fixed:
-        DB_HEMC = st.data_editor(
-            DB_HECM_Fixed,
-            num_rows="dynamic",
-            use_container_width=True,
-        )
 
-    st.write("Contact developer hggoyal06@gmail.com to change the config file")
+# # --- Helper to get PLF from chart ---
+# def get_plf(plf_df, age):
+#     eligible_ages = plf_df["AGE"].values
+#     # If age less than min or greater than max, clamp
+#     if age < eligible_ages.min():
+#         age = eligible_ages.min()
+#     elif age > eligible_ages.max():
+#         age = eligible_ages.max()
+
+#     return float(plf_df.loc[plf_df["AGE"] <= age, "PLF"].iloc[-1])
+
+# # --- Compute Results ---
+# hecm_plf_val = get_plf(hecm_plf, borrower_age)
+# jumbo_plf_val = get_plf(jumbo_plf, borrower_age)
+
+
+
+# results = []
+
+# for label, plf_val in [("HECM", hecm_plf_val), ("Jumbo", jumbo_plf_val)]:
+
+#     if label == "HECM":
+#         if home_value > 1209750:
+#             principal_limit = 1209750 * plf_val
+#         else:
+#             principal_limit = home_value * plf_val
+#     else:
+#         principal_limit = home_value * plf_val
+
+#     total_proceeds = principal_limit - existing_loan + line_of_credit
+#     avail_proceeds = principal_limit - existing_loan
+
+
+#     eligible = "✅ Yes" if principal_limit > existing_loan else "❌ No"
+
+#     results.append({
+#         "Type": label,
+#         "PLF": plf_val,
+#         "Principal Limit ($)"   : principal_limit,
+#         "Total Avail Proceeds"  : total_proceeds,
+#         "Available Proceeds ($)": avail_proceeds,
+#         "Eligible": eligible
+#     })
+
+
+
+# if "HECM_Notes" not in st.session_state:
+#     st.session_state["HECM_Notes"] = ""    
+# if "JUMBO_Notes" not in st.session_state:
+#     st.session_state["JUMBO_Notes"] = ""    
+
+
+# HECM_tab, Jumbo_tab, config_tab = st.tabs(["HECM", "JUMBO", "Config"])
+
+# if home_value > 0:
+
+#     def prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre):
+
+#         sec1,sec2, sec3, sec4 = st.columns(4)
+
+#         origination_fee = sec1.slider("Select origination fee %", min_value=0, max_value = 10, value = orgin_fee_pre, step=1, format="%d%%", key = f"{key}_origination")
+#         fixed_fee       = sec2.number_input("Fixed Fee", value = fixed_fee_pre, step=1, key = f"{key}_fixed_fee")
+
+#         total_fee_charge = (avail_proceeds*origination_fee/100) + fixed_fee
+
+#         max_fee = (df["Max Fee"].dropna().drop_duplicates().tolist())
+#         max_fee = max_fee[0] if max_fee else "-"
+
+#         sec3.badge(f"Input : {total_fee_charge:,.2f}")
+#         sec3.badge(f"Max : {max_fee}")
+
+#         try: fee_applied = min(max_fee, total_fee_charge)
+#         except: fee_applied = total_fee_charge 
+
+#         sec1.write(f"Applied Fee : {fee_applied:,.2f}")
+
+#         adj_avail_proceeds = avail_proceeds - fee_applied
+
+#         return total_fee_charge, fee_applied, adj_avail_proceeds
+
+#     def showcase_db(df):
+#         product_data = df.to_dict(orient="records")
+#         s1,s2 = st.columns(2)
+#         df = pd.DataFrame(product_data)
+#         s1.dataframe(df)
+
+#         return df
+
+#     def show_value(value,sign = None):
+#         try:
+#             if sign == "%":
+#                 return f"{value*100:.2f}%"
+#             elif sign == "$":
+#                 return f"{value:,.0f} $"
+#             else:
+#                 return f"{value:,.0f}"
+#         except:
+#             return value
+
+
+#     with HECM_tab:
+
+#         result = results[0]
+#         a,b,c,d = st.columns(4)
+
+#         principal_limit = result["Principal Limit ($)"]
+#         total_proceeds  = result["Total Avail Proceeds"]
+#         avail_proceeds  = result["Available Proceeds ($)"]
+        
+#         try:
+#             PL_Utilised = (1 - float(avail_proceeds)/float(principal_limit))
+#         except:
+#             PL_Utilised = 0
+
+
+#         a.metric("PLF %", f"{result['PLF']*100:.4f}%", width="content")
+#         b.metric("Principal Limit $", show_value(principal_limit), width="content")
+#         c.metric("Prev. Line of Credit $", show_value(line_of_credit), width="content")
+
+#         try: delta = avail_proceeds - line_of_credit
+#         except: delta = None
+#         d.metric("Current Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
+        
+#         a,b,c,d = st.columns(4)
+#         a.metric( "PL_Utilised %", show_value(PL_Utilised, "%"), width="content")
+#         b.metric("Eligibility",show_value(result["Eligible"]), width="content")
+
+
+
+#         if result["Eligible"] == "✅ Yes":
+#             ####################################
+#             st.markdown("-----------")
+
+#             key = "HECM5"
+#             # st.checkbox("Export - HECM Monthly Adj. 1Y CMT 5 CAP", key = key)
+#             st.write("HECM Monthly Adj. 1Y CMT 5 CAP")
+
+#             orgin_fee_pre = 0
+#             fixed_fee_pre = 5000
+
+#             df = DB_HECM5[DB_HECM5["Offer"] == key]
+
+#             # ### PREPARING FEE
+#             total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
+
+#             ### PREPARING DB
+#             if PL_Utilised <= 0.1:
+#                 col = "0-10%"
+#             elif PL_Utilised <= 0.2:
+#                 col = "10-20%"
+#             elif PL_Utilised <= 0.3:
+#                 col = "20-30%"
+#             elif PL_Utilised <= 0.4:
+#                 col = "30-40%"
+#             elif PL_Utilised <= 0.5:
+#                 col = "40-50%"
+#             elif PL_Utilised <= 0.6:
+#                 col = "50-60%"
+#             elif PL_Utilised <= 0.7:
+#                 col = "60-70%"
+#             elif PL_Utilised <= 0.8:
+#                 col = "70-80%"
+#             elif PL_Utilised <= 0.9:
+#                 col = "80-90%"
+#             else:
+#                 col = "90-100%"
+
+#             df = df[["Rate","Margin%", col]]
+#             df["Margin%"] = df["Margin%"].astype(str) + "%"
+#             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+#             ### SHOWCASING DB
+#             df = showcase_db(df)
+#             df_hecm5 = df
+
+
+#             ####################################
+#             ####################################
+
+#             st.markdown("-----------")
+
+#             key = "HECM_Fixed"
+#             # st.checkbox("Export - HECM Fixed", key = key)
+#             st.write("HECM Fixed")
+
+#             orgin_fee_pre = 0
+#             fixed_fee_pre = 10000
+
+#             df = DB_HECM_Fixed[DB_HECM_Fixed["Offer"] == key]
+
+#             # ### PREPARING FEE
+#             total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
+
+#             df = df[["Extra Fee", "Rate", "Premium"]]
+#             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+#             ### SHOWCASING DB
+#             df = showcase_db(df)
+#             df_hecm_fixed = df
+
+
+
+#         st.header("Export PDF")
+#         notes = st.text_area("Notes to include in PDF", value = st.session_state["HECM_Notes"], key = "Notes-HECM")
+#         st.session_state["HECM_Notes"] = notes
+
+
+#         if result["Eligible"] == "✅ Yes":
+
+#             choice = st.radio(
+#                 "Select Offer to Escape:",
+#                 ["HECM Monthly Adj. 1Y CMT 5 CAP", "HECM Fixed"]
+#             )
+#         else:
+#             choice = None
+
+
+#         left, right,a,b = st.columns(4)
+#         generate = left.button("Export PDF", key='generate_hecm')
+
+#         if generate:
+#             if choice == "HECM Monthly Adj. 1Y CMT 5 CAP":
+#                 df = df_hecm5
+#                 dfname = choice.replace("_"," ")
+#             elif choice == "HECM Fixed":
+#                 df = df_hecm_fixed
+#                 dfname = choice.replace("_"," ")
+#             else:
+#                 df = None
+#                 dfname = None
+
+
+#             pdf = create_pdf(borrowers[0], borrowers[1], "HECM", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
+#                              show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
+#                              show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
+#                              st.session_state["Notes-HECM"], result["Eligible"]
+
+#                 )
+
+#             def invoice_downloaded():
+#                 return
+
+#             # filename = f'HECM-{dfname}.pdf'
+#             filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
+
+#             download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
+
+
+#     with Jumbo_tab:
+
+
+#         T1, T2, T3 = st.tabs(["SEF+", "SEF1", "SEF2"])
+
+#         result = results[1]
+#         a,b,c,d = st.columns(4)
+
+#         principal_limit = result["Principal Limit ($)"]
+#         total_proceeds  = result["Total Avail Proceeds"]
+#         avail_proceeds  = result["Available Proceeds ($)"]
+#         # eligible = "✅ Yes" if principal_limit > existing_loan else "❌ No"
+        
+#         try:
+#             PL_Utilised = (1 - float(avail_proceeds)/float(principal_limit))
+#         except:
+#             PL_Utilised = 0
+
+
+#         a.metric("PLF %", show_value(result['PLF'], "%"), width="content")
+#         b.metric("Principal Limit $", show_value(principal_limit), width="content")
+#         c.metric("Prev. Line of Credit $", show_value(line_of_credit), width="content")
+
+#         try: delta = avail_proceeds - line_of_credit
+#         except: delta = None
+#         d.metric("Current Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
+        
+#         a,b,c,d = st.columns(4)
+#         a.metric( "PL_Utilised %", show_value(PL_Utilised, "%"), width="content")
+#         b.metric("Eligibility",show_value(result["Eligible"]), width="content")
+
+
+#         ####################################
+#         if result["Eligible"] == "✅ Yes":
+
+#             st.markdown("-----")
+
+#             key = "SecureEquity_Fixed_Plus"
+#             # st.checkbox("Export - SecureEquity Fixed Plus", key = key)
+#             st.write("SecureEquity Fixed Plus")
+
+#             orgin_fee_pre = 4
+#             fixed_fee_pre = 0
+
+#             df = DB_fixed_rate[DB_fixed_rate["Offer"] == key]
+
+#             # ### PREPARING FEE
+#             total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
+
+#             ### PREPARING DB
+#             df = df[["Rate Type", "Rate", "Premium"]]
+#             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+#             ### SHOWCASING DB
+#             df = showcase_db(df)
+#             df_SecureEquity_Fixed = df
+
+
+#             ####################################
+#             st.markdown("-----")
+
+#             key = "SecureEquity_Fixed"
+#             st.write("SecureEquity Fixed")
+#             # st.checkbox("Export - SecureEquity Fixed", key = key)
+
+#             orgin_fee_pre = 1
+#             fixed_fee_pre = 0
+
+#             df = DB_fixed_rate[DB_fixed_rate["Offer"] == key]
+
+#             # ### PREPARING FEE
+#             total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
+
+#             ### PREPARING DB
+#             df = df[["Rate Type", "Rate", "Premium"]]
+
+#             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+#             ### SHOWCASING DB
+#             df = showcase_db(df)
+#             df_SecureEquity_Fixed_Plus = df
+
+
+#             ####################################
+#             st.markdown("-----")
+
+#             key = "ARM"
+#             st.write("SecureEquity ARM")
+#             # st.checkbox("Export - SecureEquity ARM", key = key)
+
+#             orgin_fee_pre = 1
+#             fixed_fee_pre = 0
+
+#             df = DB_ARM[DB_ARM["Offer"] == key]
+
+#             # ### PREPARING FEE
+#             total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre)
+
+
+#             sec1,sec2, sec3, sec4 = st.columns(4)
+#             cc = get_cmt()
+#             if cc:
+#                 cmt_ = sec1.number_input("CMT Value %", value = cc, min_value=0.0, format="%.2f", key = "cmt_value")
+#             else:
+#                 cmt_ = sec1.number_input("CMT Value %", min_value=0.0, format="%.2f", key = "cmt_value")
+
+
+#             ### PREPARING DB
+
+#             if PL_Utilised < 0.25:
+#                 col = "0-25%"
+#             elif PL_Utilised <= 0.8:
+#                 col = "25-80%"
+#             elif PL_Utilised <= 0.9:
+#                 col = "80-90%"
+#             else:
+#                 col = "90-100%"
+
+#             df = df[["Rate Type", "Margin%", col]]
+#             df["Rate"] = cmt_ + df["Margin%"].astype(float)
+#             df["Rate"] = df["Rate"].astype(str) + "%"
+
+#             df["Margin%"] = df["Margin%"].astype(str) + "%"
+#             df["Avail. Proceeds"] = f"{adj_avail_proceeds:,.0f}"
+
+#             df = df[["Rate Type","Rate", "Margin%", col]]
+
+#             ### SHOWCASING DB
+#             df = showcase_db(df)
+#             df_ARM = df
+
+
+#             ####################################
+
+
+# st.header("Export PDF")
+# notes = st.text_area("Notes to include in PDF")
+
+# left, right,a,b = st.columns(4)
+# generate = left.button("Export PDF", key='generate_jumbo')
+
+# if generate:
+
+#     pdf = create_pdf(borrowers[0], borrowers[1], "JUMBO", show_value(result['PLF'], "%"), show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
+#                      show_value(delta, "$"), show_value(PL_Utilised, "%"), dfname, df, today.strftime("%m/%d/%Y"), 
+#                      show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
+#                      st.session_state["Notes-JUMBO"], result["Eligible"]
+
+#         )
+
+#     def invoice_downloaded():
+#         return
+#         if not st.session_state.disabled:
+#             st.success("Invoice Downloaded")    
+
+#     filename = f'{youngest_borrower["Last Name"]}-{youngest_borrower["First Name"]}-{choice}.pdf'
+
+#     download_Invoice = right.download_button(label="Download PDF", data = pdf, file_name= filename, mime='application/octet-stream', disabled = False, on_click = invoice_downloaded)
+
+
+# else:
+#     with HECM_tab:
+#         st.info("Enter Home Value and Loan to calculate results.")
+#     with Jumbo_tab:
+#         st.info("Enter Home Value and Loan to calculate results.")
+
+
+
+
+
+# with config_tab:
+#     st.header("⚙️ Configuration Database")
+
+#     hecm_plf_tab, jumbo_plf_tab, fixed_rate, arm, hemc5, hecm_fixed = st.tabs(["HECM", "JUMBO","SecureEquity Fixed", "ARM", "HEMC5", "HECM Fixed"])
+
+#     with hecm_plf_tab:
+#         s1, s2 = st.columns(2)
+#         s1.dataframe(
+#             hecm_plf
+#         )
+
+#     with jumbo_plf_tab:
+#         s1, s2 = st.columns(2)
+#         s1.dataframe(
+#             jumbo_plf
+#         )
+
+#     with fixed_rate:
+#         DB_fixed_rate = st.data_editor(
+#             DB_fixed_rate,
+#             num_rows="dynamic",
+#             use_container_width=True,
+#         )
+
+#     with arm:
+#         DB_ARM = st.data_editor(
+#             DB_ARM,
+#             num_rows="dynamic",
+#             use_container_width=True,
+#         )
+
+#     with hemc5:
+#         DB_HEMC5 = st.data_editor(
+#             DB_HECM5,
+#             num_rows="dynamic",
+#             use_container_width=True,
+#         )
+
+#     with hecm_fixed:
+#         DB_HEMC = st.data_editor(
+#             DB_HECM_Fixed,
+#             num_rows="dynamic",
+#             use_container_width=True,
+#         )
+
+#     st.write("Contact developer hggoyal06@gmail.com to change the config file")
 
 
 

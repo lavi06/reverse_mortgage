@@ -183,38 +183,40 @@ st.set_page_config(page_title="Reverse Mortgage Calculator", layout="wide")
 
 
 
-# def download_excel():
+def download_excel():
 
-#     url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
+    url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
 
-#     response = requests.get(url)
-#     response.raise_for_status()
-#     dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
-#     # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
+    response = requests.get(url)
+    response.raise_for_status()
+    master_moom_file = pd.read_excel(response.content,  sheet_name=None)
 
-#     DB_fixed_rate  = dfs["SecureEquity"]
-#     DB_ARM         = dfs["ARM"]
-#     DB_HECM5       = dfs["HECM"]
-#     DB_HECM_Fixed  = dfs["HECM_Fixed"]
+    return master_moom_file
+    # dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
+    # # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
 
-#     ##############################
-#     # pfl_chart = pd.read_excel("PFL.xlsx")
-#     pfl_chart = dfs["PLF"]
-#     hecm_plf = pfl_chart[["AGE", "HECM"]]
-#     hecm_plf.columns = ["AGE", "PLF"]
+    # DB_fixed_rate  = dfs["SecureEquity"]
+    # DB_ARM         = dfs["ARM"]
+    # DB_HECM5       = dfs["HECM"]
+    # DB_HECM_Fixed  = dfs["HECM_Fixed"]
 
-#     jumbo_plf = pfl_chart[["AGE", "Jumbo"]]
-#     jumbo_plf.columns = ["AGE", "PLF"]
-#     ##############################
+    # ##############################
+    # # pfl_chart = pd.read_excel("PFL.xlsx")
+    # pfl_chart = dfs["PLF"]
+    # hecm_plf = pfl_chart[["AGE", "HECM"]]
+    # hecm_plf.columns = ["AGE", "PLF"]
 
-#     return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
+    # jumbo_plf = pfl_chart[["AGE", "Jumbo"]]
+    # jumbo_plf.columns = ["AGE", "PLF"]
+    # ##############################
+
+    # return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
 
 
 # DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
 
-
-master_moom_file = pd.read_excel("MOOM.xlsx",  sheet_name=None)
-
+# master_moom_file = pd.read_excel("MOOM.xlsx",  sheet_name=None)
+master_moom_file = download_excel()
 
 config = master_moom_file["Config"]
 plf_master = master_moom_file["PLF"]

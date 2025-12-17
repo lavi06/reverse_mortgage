@@ -362,8 +362,7 @@ if borrowers:
 
 left, right = st.columns(2)
 home_value    = left.number_input("Home Value ($)", min_value=0.0, format="%.2f")
-existing_loan = right.number_input("Outstanding Loan ($)", min_value=0.0, format="%.2f")
-
+line_of_credit = right.number_input("Line of Credit ($)", min_value=0.0, format="%.2f")
 
 left, right = st.columns(2)
 Property_Tax = left.number_input("Annual Property Tax Amount ($)", min_value=0.0, format="%.2f")
@@ -372,7 +371,7 @@ st.markdown("-----------")
 
 
 left, right, more_right = st.columns(3)
-line_of_credit = left.number_input("Loan1Amount $", min_value=0.0, format="%.2f")
+existing_loan = left.number_input("Loan1Amount $", min_value=0.0, format="%.2f")
 Loan1RecDate = right.text_input(f"Loan1RecDate")
 current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f")
 st.markdown("-----------")

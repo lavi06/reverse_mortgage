@@ -228,7 +228,20 @@ plf_master = master_moom_file["PLF"]
 
 ###### CHECK QUERY PARAMS
 
-PARAMS = st.query_params
+def dob_from_age(age: int, as_of: date | None = None) -> date:
+    if not age:
+        return None
+
+    as_of = as_of or date.today()
+
+    try:
+        return as_of.replace(year=as_of.year - age)
+    except ValueError:
+        # Handles Feb 29
+        return as_of.replace(month=2, day=28, year=as_of.year - age)
+
+
+params = st.query_params
 def load_param_once(key, default=None, cast=None):
     if key not in st.session_state:
         val = params.get(key, default)
@@ -244,8 +257,20 @@ def load_param_once(key, default=None, cast=None):
 load_param_once("APN")
 load_param_once("Borrower1FName")
 load_param_once("Borrower1LName")
-load_param_once("DOB1", cast=lambda x: date.fromisoformat(x))
-load_param_once("AGE1", cast=int)
+
+
+if "AGE1" not in st.session_state:
+    if "AGE1" in params:
+        st.session_state["Toggle1"] = True
+        st.session_state["AGE1"] = int(params.get("AGE1", 0))
+        st.session_state["DOB1"] = dob_from_age(st.session_state["AGE1"])
+
+if "DOB1" not in st.session_state:
+    if "DOB1" in params:
+        st.session_state["Toggle1"] = False
+        load_param_once("DOB1", cast=lambda x: date.fromisoformat(x))
+
+# load_param_once("AGE1", cast=int)
 load_param_once("Address1")
 load_param_once("City1")
 load_param_once("State1")
@@ -254,10 +279,21 @@ load_param_once("Mobile1")
 load_param_once("HomePhone1")
 load_param_once("Email1")
 
+
+
 load_param_once("Borrower2FName")
 load_param_once("Borrower2LName")
-load_param_once("DOB2", cast=lambda x: date.fromisoformat(x))
-load_param_once("AGE2", cast=int)
+if "AGE2" not in st.session_state:
+    if "AGE2" in params:
+        st.session_state["Toggle2"] = True
+        st.session_state["AGE2"] = int(params.get("AGE2", 0))
+        st.session_state["DOB2"] = dob_from_age(st.session_state["AGE2"])
+
+if "DOB2" not in st.session_state:
+    if "DOB2" in params:
+        st.session_state["Toggle2"] = False
+        load_param_once("DOB2", cast=lambda x: date.fromisoformat(x))
+
 load_param_once("Address2")
 load_param_once("City2")
 load_param_once("State2")
@@ -270,10 +306,15 @@ load_param_once("home_value", cast=int)
 load_param_once("line_of_credit", cast=int)
 load_param_once("property_tax", cast=int)
 load_param_once("existing_loan", cast=int)
+
+
 load_param_once(
     "existing_loan_date",
-    cast=lambda x: date.fromisoformat(x)
+    cast=lambda x: date.fromisoformat(x),
+    default = date(1900, 1, 1)
 )
+
+
 load_param_once("existing_loan_interest", cast=float)
 
 
@@ -306,6 +347,7 @@ today = date.today()
 
 min_date = date(1900, 1, 1)
 
+
 def calculate_age(dob, today=None):
     if today is None:
         today = date.today()
@@ -334,10 +376,9 @@ for i in range(int(num_borrowers)):
         last_name = right.text_input(f"Borrower {i+1} Last Name" , key = f"Borrower{i+1}LName")
 
 
-        toggle = st.toggle("Select Age", key = f"Toggle {i}") 
+        toggle = st.toggle("Select Age", key = f"Toggle{i+1}") 
 
         if not toggle:
-
             left, right = st.columns(2)
 
             dob = left.date_input(
@@ -348,7 +389,7 @@ for i in range(int(num_borrowers)):
                 key = f"DOB{i+1}"
             )
 
-            age = calculate_age(dob, today)
+            age = calculate_age(st.session_state[f"DOB{i+1}"], today)
             dob = dob.strftime("%m/%d/%Y")
 
             right.badge("")
@@ -358,8 +399,7 @@ for i in range(int(num_borrowers)):
             left, right,c = st.columns(3)
 
             age_year  = left.number_input("Years"  ,min_value=0 ,max_value=120 ,step=1 ,format="%d", key = f"AGE{i+1}")
-            age_month = right.number_input("Months",min_value=0 ,max_value=12 ,step=1 ,format="%d")
-            # dob = f"{age_month}/01/{age_year}"
+            age_month = right.number_input("Months",min_value=0 ,max_value=12 ,step=1 ,format="%d", key=f"AGE_MONTH{i+1}")
             dob = "-"
             age = [age_year, age_month]
 
@@ -428,9 +468,21 @@ st.markdown("-----------")
 
 
 left, right, more_right = st.columns(3)
+
 existing_loan = left.number_input("Loan1Amount $", min_value=0.0, format="%.2f", key = "existing_loan")
-Loan1RecDate = right.text_input(f"Loan1RecDate", key = "existing_loan_date")
+
+Loan1RecDate = right.date_input(
+    "Loan1RecDate",
+    min_value = min_date,
+    max_value = today,
+    # value = date(1900, 1, 1),
+    key = "existing_loan_date"
+)
+
+
 current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
+
+
 st.markdown("-----------")
 
 

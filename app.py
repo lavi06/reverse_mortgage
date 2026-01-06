@@ -215,6 +215,7 @@ def download_excel():
     # return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
 
 
+
 # DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
 
 # master_moom_file = pd.read_excel("MOOM.xlsx",  sheet_name=None)
@@ -223,6 +224,57 @@ master_moom_file = download_excel()
 config = master_moom_file["Config"]
 plf_master = master_moom_file["PLF"]
 
+
+
+###### CHECK QUERY PARAMS
+
+PARAMS = st.query_params
+def load_param_once(key, default=None, cast=None):
+    if key not in st.session_state:
+        val = params.get(key, default)
+        if val in ("", None):
+            st.session_state[key] = default
+        else:
+            try:
+                st.session_state[key] = cast(val) if cast else val
+            except:
+                st.session_state[key] = default
+
+
+load_param_once("APN")
+load_param_once("Borrower1FName")
+load_param_once("Borrower1LName")
+load_param_once("DOB1", cast=lambda x: date.fromisoformat(x))
+load_param_once("AGE1", cast=int)
+load_param_once("Address1")
+load_param_once("City1")
+load_param_once("State1")
+load_param_once("Zipcode1")
+load_param_once("Mobile1")
+load_param_once("HomePhone1")
+load_param_once("Email1")
+
+load_param_once("Borrower2FName")
+load_param_once("Borrower2LName")
+load_param_once("DOB2", cast=lambda x: date.fromisoformat(x))
+load_param_once("AGE2", cast=int)
+load_param_once("Address2")
+load_param_once("City2")
+load_param_once("State2")
+load_param_once("Zipcode2")
+load_param_once("Mobile2")
+load_param_once("HomePhone2")
+load_param_once("Email2")
+
+load_param_once("home_value", cast=int)
+load_param_once("line_of_credit", cast=int)
+load_param_once("property_tax", cast=int)
+load_param_once("existing_loan", cast=int)
+load_param_once(
+    "existing_loan_date",
+    cast=lambda x: date.fromisoformat(x)
+)
+load_param_once("existing_loan_interest", cast=float)
 
 
 
@@ -241,6 +293,7 @@ def get_cmt():
 
 
 ######################################################
+
 
 
 # --- SIDEBAR: Borrower & Property Inputs ---
@@ -271,13 +324,14 @@ def calculate_age(dob, today=None):
     return years, months
 
 
+
 for i in range(int(num_borrowers)):
 
     with st.sidebar.expander(f"Borrower {i+1}"):
   
         left, right = st.columns(2)
-        first_name = left.text_input(f"Borrower {i+1} First Name", key = f"FirstName {i}")
-        last_name = right.text_input(f"Borrower {i+1} Last Name", key = f"LastName {i}")
+        first_name = left.text_input(f"Borrower {i+1} First Name", key = f"Borrower{i+1}FName")
+        last_name = right.text_input(f"Borrower {i+1} Last Name" , key = f"Borrower{i+1}LName")
 
 
         toggle = st.toggle("Select Age", key = f"Toggle {i}") 
@@ -291,7 +345,7 @@ for i in range(int(num_borrowers)):
                 min_value = min_date,
                 max_value = today,
                 value = date(1900, 1, 1),
-                key = f"dob - {i}"
+                key = f"DOB{i+1}"
             )
 
             age = calculate_age(dob, today)
@@ -303,7 +357,7 @@ for i in range(int(num_borrowers)):
         else:
             left, right,c = st.columns(3)
 
-            age_year  = left.number_input("Years"  ,min_value=0 ,max_value=120 ,step=1 ,format="%d")
+            age_year  = left.number_input("Years"  ,min_value=0 ,max_value=120 ,step=1 ,format="%d", key = f"AGE{i+1}")
             age_month = right.number_input("Months",min_value=0 ,max_value=12 ,step=1 ,format="%d")
             # dob = f"{age_month}/01/{age_year}"
             dob = "-"
@@ -316,16 +370,17 @@ for i in range(int(num_borrowers)):
             age_used = age[0]
 
 
-        address = st.text_input(f"Address", key = f"Address {i}")
+
+        address = st.text_input(f"Address", key = f"Address{i+1}")
 
         left, right = st.columns(2)
-        city = left.text_input(f"City", key = f"City {i}")
-        state = right.text_input(f"State", key = f"State {i}")
-        zipcode = st.text_input(f"Zipcode", key = f"Zipcode {i}")
+        city = left.text_input(f"City", key = f"City{i+1}")
+        state = right.text_input(f"State", key = f"State{i+1}")
+        zipcode = st.text_input(f"Zipcode", key = f"Zipcode{i+1}")
 
-        mobile = st.text_input("Mobile Phone", placeholder="Enter 10-digit mobile number", key = f"Mobile {i}")
-        home_phone = st.text_input("Home Phone" , placeholder="Enter home number", key = f"HomePhone {i}")
-        email = st.text_input(f"Borrower {i+1} Email" , placeholder="Enter Email", key = f"Email {i}")
+        mobile = st.text_input("Mobile Phone", placeholder="Enter 10-digit mobile number", key = f"Mobile{i+1}")
+        home_phone = st.text_input("Home Phone" , placeholder="Enter home number", key = f"HomePhone{i+1}")
+        email = st.text_input(f"Borrower {i+1} Email" , placeholder="Enter Email", key = f"Email{i+1}")
 
 
         borrowers.append({
@@ -360,30 +415,27 @@ if borrowers:
 # # --- Home details ---
 # st.header("🏡 Property Details")
 
-left, right = st.columns(2)
-home_value    = left.number_input("Home Value ($)", min_value=0.0, format="%.2f")
-line_of_credit = right.number_input("Line of Credit ($)", min_value=0.0, format="%.2f")
+
 
 left, right = st.columns(2)
-Property_Tax = left.number_input("Annual Property Tax Amount ($)", min_value=0.0, format="%.2f")
+home_value    = left.number_input("Home Value ($)", min_value=0.0, format="%.2f", key = "home_value")
+line_of_credit = right.number_input("Line of Credit ($)", min_value=0.0, format="%.2f", key = "line_of_credit")
+
+left, right = st.columns(2)
+Property_Tax = left.number_input("Annual Property Tax Amount ($)", min_value=0.0, format="%.2f", key = "property_tax")
 
 st.markdown("-----------")
 
 
 left, right, more_right = st.columns(3)
-existing_loan = left.number_input("Loan1Amount $", min_value=0.0, format="%.2f")
-Loan1RecDate = right.text_input(f"Loan1RecDate")
-current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f")
+existing_loan = left.number_input("Loan1Amount $", min_value=0.0, format="%.2f", key = "existing_loan")
+Loan1RecDate = right.text_input(f"Loan1RecDate", key = "existing_loan_date")
+current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
 st.markdown("-----------")
-
 
 
 config = (config.set_index("Name").to_dict(orient="index"))
 
-
-# tabs = []
-# for i in list(config.keys()):
-#     tabs.append(i)
 
 
 
@@ -400,6 +452,7 @@ def show_value(value,sign = None):
             return f"{value:,.0f}"
     except:
         return value
+
 
 def prepare_fee(df, key, orgin_fee_pre, fixed_fee_pre):
 

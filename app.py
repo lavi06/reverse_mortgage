@@ -325,6 +325,8 @@ load_param_once("Loan1LenderName")
 load_param_once("Loan1FinancingType")
 load_param_once("ProductType_Flag")
 
+load_param_once("NOTES")
+
 
 def get_cmt():
 
@@ -492,6 +494,7 @@ Loan1RecDate = right.date_input(
 Loan1LenderName  = more_right.text_input(f"Loan1LenderName"    , key = "Loan1LenderName")
 
 
+######################################################
 left, right, more_right, extreme_right = st.columns(4)
 
 current_interest = left.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
@@ -507,8 +510,10 @@ try:
     st.write(f"Monthly Savings : {(existing_loan * loan_diff / 12):,.2f}")
 except:
     pass
+
 # left, right, more_right = st.columns(3)
 # current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
+######################################################
 
 
 
@@ -701,7 +706,7 @@ if plf_value:
 
 
     st.header("Export PDF")
-    notes = st.text_area("Notes to include in PDF")
+    notes = st.text_area("Notes to include in PDF", key = "NOTES")
 
     left, right,a,b = st.columns(4)
     generate = left.button("Export PDF", key='generate_jumbo')
@@ -712,7 +717,6 @@ if plf_value:
                          show_value(delta, "$"), show_value(PL_Utilised, "%"), selected_program, df, today.strftime("%m/%d/%Y"), 
                          show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
                          notes, eligible, Property_Tax, Loan1RecDate
-
             )
 
         def invoice_downloaded():
@@ -729,3 +733,6 @@ else:
 
 
 # st.write(df_selected)
+
+
+

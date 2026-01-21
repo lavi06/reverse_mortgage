@@ -194,6 +194,7 @@ def download_excel():
     master_moom_file = pd.read_excel(response.content,  sheet_name=None)
 
     return master_moom_file
+
     # dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
     # # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
 
@@ -303,10 +304,13 @@ load_param_once("HomePhone2")
 load_param_once("Email2")
 
 load_param_once("home_value", cast=int)
+
+load_param_once("zillow_estimate", cast=int)
+load_param_once("redfinn_estimate", cast=int)
+
 load_param_once("line_of_credit", cast=int)
 load_param_once("property_tax", cast=int)
 load_param_once("existing_loan", cast=int)
-
 
 load_param_once(
     "existing_loan_date",
@@ -314,10 +318,11 @@ load_param_once(
     default = date(1900, 1, 1)
 )
 
-
 load_param_once("existing_loan_interest", cast=float)
 
-
+load_param_once("Loan1LenderName")
+load_param_once("Loan1FinancingType")
+load_param_once("ProductType_Flag")
 
 
 def get_cmt():
@@ -457,12 +462,16 @@ if borrowers:
 
 
 
-left, right = st.columns(2)
-home_value    = left.number_input("Home Value ($)", min_value=0.0, format="%.2f", key = "home_value")
-line_of_credit = right.number_input("Line of Credit ($)", min_value=0.0, format="%.2f", key = "line_of_credit")
+left, right, corner = st.columns(3)
 
-left, right = st.columns(2)
-Property_Tax = left.number_input("Annual Property Tax Amount ($)", min_value=0.0, format="%.2f", key = "property_tax")
+home_value         = left.number_input("Home Value ($)"        , min_value=0.0, format="%.2f", key = "home_value")
+zillow_estimate    = right.number_input("Zillow Estimate ($)"  , min_value=0.0, format="%.2f", key = "zillow_estimate")
+redfinn_estimate   = corner.number_input("Redfinn Estimate ($)", min_value=0.0, format="%.2f", key = "redfinn_estimate")
+
+
+left, right, x = st.columns(3)
+line_of_credit = left.number_input("Line of Credit ($)", min_value=0.0, format="%.2f", key = "line_of_credit")
+Property_Tax   = right.number_input("Annual Property Tax Amount ($)", min_value=0.0, format="%.2f", key = "property_tax")
 
 st.markdown("-----------")
 
@@ -479,8 +488,14 @@ Loan1RecDate = right.date_input(
     key = "existing_loan_date"
 )
 
-
 current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
+
+
+left, right, more_right = st.columns(3)
+
+Loan1LenderName    = left.text_input(f"Loan1LenderName"    , key = "Loan1LenderName")
+Loan1FinancingType = right.text_input(f"Loan1FinancingType", key = "Loan1FinancingType")
+ProductType_Flag   = more_right.text_input(f"ProductType_Flag", key = "ProductType_Flag")
 
 
 st.markdown("-----------")
@@ -545,6 +560,7 @@ if rows.empty:
     plf_value = None
 else:
     plf_value = rows.iloc[0]
+
 
 if plf_value:
     # tab_selected = config[selected_program]["Tab"]

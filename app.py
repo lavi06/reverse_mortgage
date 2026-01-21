@@ -319,6 +319,7 @@ load_param_once(
 )
 
 load_param_once("existing_loan_interest", cast=float)
+load_param_once("new_interest", cast=float)
 
 load_param_once("Loan1LenderName")
 load_param_once("Loan1FinancingType")
@@ -488,14 +489,27 @@ Loan1RecDate = right.date_input(
     key = "existing_loan_date"
 )
 
-current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
+Loan1LenderName  = more_right.text_input(f"Loan1LenderName"    , key = "Loan1LenderName")
 
 
-left, right, more_right = st.columns(3)
+left, right, more_right, extreme_right = st.columns(4)
 
-Loan1LenderName    = left.text_input(f"Loan1LenderName"    , key = "Loan1LenderName")
-Loan1FinancingType = right.text_input(f"Loan1FinancingType", key = "Loan1FinancingType")
-ProductType_Flag   = more_right.text_input(f"ProductType_Flag", key = "ProductType_Flag")
+current_interest = left.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
+new_interest     = right.number_input("New Rate" , min_value=0.0 , format="%.2f", key = "new_interest")
+
+Loan1FinancingType = more_right.text_input(f"Loan1FinancingType", key = "Loan1FinancingType")
+ProductType_Flag   = extreme_right.text_input(f"ProductType_Flag", key = "ProductType_Flag")
+
+try:
+    loan_diff = st.session_state.new_interest - st.session_state.existing_loan_interest
+
+    st.write(f"Yearly Savings  : {(existing_loan * loan_diff):,.2f}")
+    st.write(f"Monthly Savings : {(existing_loan * loan_diff / 12):,.2f}")
+except:
+    pass
+# left, right, more_right = st.columns(3)
+# current_interest = more_right.number_input("Loan1Rate" , min_value=0.0 , format="%.2f", key = "existing_loan_interest")
+
 
 
 st.markdown("-----------")
@@ -715,6 +729,3 @@ else:
 
 
 # st.write(df_selected)
-
-
-

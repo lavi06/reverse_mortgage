@@ -7,7 +7,8 @@ import requests
 from fpdf import FPDF
 
 
-def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, increase, PLU, df_name, df, _date, home_value, outstanding_loan, line_of_credit, current_interest, notes, eligible, Property_Tax, Loan1RecDate):
+def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, increase, PLU, df_name, df, _date, home_value, outstanding_loan, line_of_credit, current_interest, notes, eligible, Property_Tax, Loan1RecDate, session_state):
+
     border = 0
 
     pdf = FPDF(orientation = 'P', unit = 'mm', format='A4')
@@ -18,7 +19,7 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
     pdf.set_margins(20,20)
 
 
-    pdf.rect(x = 15, y = 25 , w = 180, h= 115, style = "")
+    pdf.rect(x = 15, y = 25 , w = 180, h= 125, style = "")
 
     pdf.cell(170, 15, ln = 1, border = border)
 
@@ -60,23 +61,28 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
     # pdf.cell(40, 5, txt = "_____________________________________________________________________________________", ln = 1, border = border)
 
     pdf.set_font('Arial', "", 12)
-    pdf.cell(170, 5, ln = 1, border = border, align="L")
+    # pdf.cell(170, 5, ln = 1, border = border, align="L")
     pdf.cell(170, 5, ln = 1, border = border, align="L")
     pdf.cell(170, 5, txt = "Property Details :", ln = 1, border = border, align="L")
     pdf.cell(15, 2, ln = 1, border = border, align="L")
 
     vals = {
-        "Home Loan $" : home_value,
+        "Home Value $" : home_value,
+        "Zillow Estimate $" : session_state["zillow_estimate"],
+        "Redfinn Estimate $" : session_state["redfinn_estimate"],
+
         "Outstanding Loan $" : outstanding_loan,
         "Property Tax" : Property_Tax,
 
         "Loan1Amount $" : line_of_credit,
         "Loan1RecDate" : Loan1RecDate,
         "Loan1Rate %" : current_interest,
+
         }
 
     pdf.set_font('Arial', "", 10)
-    for each in ["Home Loan $", "Outstanding Loan $", "Property Tax", "Loan1Amount $", "Loan1RecDate", "Loan1Rate %", ]:
+    # for each in ["Home Value $", "Outstanding Loan $", "Property Tax", "Loan1Amount $", "Loan1RecDate", "Loan1Rate %", ]:
+    for each in vals.keys():
         pdf.cell(15, 5, ln = 0, border = border, align="L")
         pdf.cell(50, 5, txt = each ,ln = 0, border = 1, align="L")
         pdf.cell(50, 5, txt = str(vals[each]) ,ln = 1, border = 1, align="L")
@@ -506,8 +512,8 @@ ProductType_Flag   = extreme_right.text_input(f"ProductType_Flag", key = "Produc
 try:
     loan_diff = st.session_state.new_interest - st.session_state.existing_loan_interest
 
-    st.write(f"Yearly Savings  : {(existing_loan * loan_diff):,.2f}")
-    st.write(f"Monthly Savings : {(existing_loan * loan_diff / 12):,.2f}")
+    st.write(f"Yearly Savings  : {(existing_loan * loan_diff/100):,.2f}")
+    st.write(f"Monthly Savings : {(existing_loan * loan_diff / 1200):,.2f}")
 except:
     pass
 
@@ -712,11 +718,14 @@ if plf_value:
     generate = left.button("Export PDF", key='generate_jumbo')
 
     if generate:
+        for each in (st.session_state):
+            print(each)
 
+        print("-----")
         pdf = create_pdf(borrowers[0], borrowers[1], selected_program, f"{plf_value*100:.2f}%", show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
                          show_value(delta, "$"), show_value(PL_Utilised, "%"), selected_program, df, today.strftime("%m/%d/%Y"), 
                          show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),
-                         notes, eligible, Property_Tax, Loan1RecDate
+                         st.session_state.get("NOTES"), eligible, Property_Tax, Loan1RecDate, st.session_state
             )
 
         def invoice_downloaded():

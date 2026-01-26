@@ -247,8 +247,33 @@ def dob_from_age(age: int, as_of: date | None = None) -> date:
         # Handles Feb 29
         return as_of.replace(month=2, day=28, year=as_of.year - age)
 
+def calculate_age(dob, today=None):
+    if today is None:
+        today = date.today()
 
-params = st.query_params
+    years = today.year - dob.year
+    months = today.month - dob.month
+    days = today.day - dob.day
+
+    # Adjust if the current month/day hasn't been reached yet
+    if days < 0:
+        months -= 1
+    if months < 0:
+        years -= 1
+        months += 12
+
+    return years, months
+
+
+# params = st.query_params
+params = st.query_params.to_dict()
+
+params = {
+    k: v for k, v in params.items()
+    if v not in ("", None)
+}
+
+
 def load_param_once(key, default=None, cast=None):
     if key not in st.session_state:
         val = params.get(key, default)
@@ -266,16 +291,26 @@ load_param_once("Borrower1FName")
 load_param_once("Borrower1LName")
 
 
+
 if "AGE1" not in st.session_state:
     if "AGE1" in params:
         st.session_state["Toggle1"] = True
         st.session_state["AGE1"] = int(params.get("AGE1", 0))
         st.session_state["DOB1"] = dob_from_age(st.session_state["AGE1"])
 
+
 if "DOB1" not in st.session_state:
     if "DOB1" in params:
         st.session_state["Toggle1"] = False
         load_param_once("DOB1", cast=lambda x: date.fromisoformat(x))
+        try:
+            aa = calculate_age(st.session_state["DOB1"], date.today())
+            st.session_state["AGE1"] = aa
+        except:
+            pass
+    else:
+        st.session_state["DOB1"] = date(1900, 1, 1)
+
 
 # load_param_once("AGE1", cast=int)
 load_param_once("Address1")
@@ -300,6 +335,13 @@ if "DOB2" not in st.session_state:
     if "DOB2" in params:
         st.session_state["Toggle2"] = False
         load_param_once("DOB2", cast=lambda x: date.fromisoformat(x))
+        try:
+            aa = calculate_age(st.session_state["DOB2"], date.today())
+            st.session_state["AGE2"] = aa
+        except:
+            pass
+    else:
+        st.session_state["DOB2"] = date(1900, 1, 1)
 
 load_param_once("Address2")
 load_param_once("City2")
@@ -334,6 +376,11 @@ load_param_once("ProductType_Flag")
 load_param_once("NOTES")
 
 
+for each in st.session_state:
+    print(each, st.session_state[each])
+    print("---")
+
+
 def get_cmt():
 
     url = "https://api.stlouisfed.org/fred/series/observations?series_id=DGS1&api_key=ec4dad690a78e68befef631d6169ecc7&file_type=json"
@@ -362,23 +409,6 @@ today = date.today()
 min_date = date(1900, 1, 1)
 
 
-def calculate_age(dob, today=None):
-    if today is None:
-        today = date.today()
-
-    years = today.year - dob.year
-    months = today.month - dob.month
-    days = today.day - dob.day
-
-    # Adjust if the current month/day hasn't been reached yet
-    if days < 0:
-        months -= 1
-    if months < 0:
-        years -= 1
-        months += 12
-
-    return years, months
-
 
 
 for i in range(int(num_borrowers)):
@@ -392,6 +422,9 @@ for i in range(int(num_borrowers)):
 
         toggle = st.toggle("Select Age", key = f"Toggle{i+1}") 
 
+        age = [None, None]
+        age_used = None
+
         if not toggle:
             left, right = st.columns(2)
 
@@ -399,30 +432,32 @@ for i in range(int(num_borrowers)):
                 "D.O.B (YY-MM-DD)",
                 min_value = min_date,
                 max_value = today,
-                value = date(1900, 1, 1),
                 key = f"DOB{i+1}"
             )
+            if st.session_state[f"DOB{i+1}"] is not None:
+                age = calculate_age(st.session_state[f"DOB{i+1}"], today)
+                dob = dob.strftime("%m/%d/%Y")
 
-            age = calculate_age(st.session_state[f"DOB{i+1}"], today)
-            dob = dob.strftime("%m/%d/%Y")
-
-            right.badge("")
-            right.badge(f"{age[0]} Y {age[1]} M")
+                right.badge("")
+                right.badge(f"{age[0]} Y {age[1]} M")
 
         else:
             left, right,c = st.columns(3)
 
             age_year  = left.number_input("Years"  ,min_value=0 ,max_value=120 ,step=1 ,format="%d", key = f"AGE{i+1}")
             age_month = right.number_input("Months",min_value=0 ,max_value=12 ,step=1 ,format="%d", key=f"AGE_MONTH{i+1}")
+
+
             dob = "-"
             age = [age_year, age_month]
 
-
-        if age[1] >= 6 :
-            age_used = age[0] + 1 
-        else:
-            age_used = age[0]
-
+        try:
+            if age[1] >= 6 :
+                age_used = age[0] + 1 
+            else:
+                age_used = age[0]
+        except:
+            pass
 
 
         address = st.text_input(f"Address", key = f"Address{i+1}")
@@ -453,18 +488,27 @@ for i in range(int(num_borrowers)):
             "Email" : email
             })
 
+print(json.dumps(borrowers, indent = 3))
 
-# # --- Calculate youngest borrower's age ---
+
+
 if borrowers:
+
     youngest_borrower = min(borrowers, key=lambda x: x["age_used"])
 
-    st.sidebar.write(f"**Youngest Borrower Age:** {youngest_borrower['age_used']}")
-    st.sidebar.write(f"**Name :** {youngest_borrower['First Name']} {youngest_borrower['Last Name']}")
-    st.sidebar.write(f"**D.O.B:** {youngest_borrower['D.O.B']}")
-    st.sidebar.markdown("------")
+    if youngest_borrower:
+        st.sidebar.write(f"**Youngest Borrower Age:** {youngest_borrower['age_used']}")
+        st.sidebar.write(f"**Name :** {youngest_borrower['First Name']} {youngest_borrower['Last Name']}")
+        st.sidebar.write(f"**D.O.B:** {youngest_borrower['D.O.B']}")
+        st.sidebar.markdown("------")
 
-    borrower_age = youngest_borrower["age_used"]
+        borrower_age = youngest_borrower["age_used"]
 
+    else:
+        st.error("Enter DOB for atleast 1 Borrower")
+
+
+print(json.dumps(youngest_borrower, indent = 3))
 
 # # --- Home details ---
 # st.header("🏡 Property Details")

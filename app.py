@@ -66,6 +66,7 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
     pdf.cell(170, 5, txt = "Property Details :", ln = 1, border = border, align="L")
     pdf.cell(15, 2, ln = 1, border = border, align="L")
 
+
     vals = {
         "Home Value $" : home_value,
         "Zillow Estimate $" : session_state["zillow_estimate"],
@@ -167,14 +168,15 @@ def create_pdf(applicant1, applicant2, loan_type, PLF, PL, avail_proceeds, incre
             pdf.ln(line_height)
 
 
-    if len(notes) > 0 :
+    if notes:
+        if len(notes) > 0 :
 
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(170, 25, ln = 1, border = border)
-        pdf.cell(170, 10, txt = "NOTES", ln = 1, border = border)
+            pdf.set_font('Arial', 'B', 16)
+            pdf.cell(170, 25, ln = 1, border = border)
+            pdf.cell(170, 10, txt = "NOTES", ln = 1, border = border)
 
-        pdf.set_font("Arial", "B", 8)
-        pdf.multi_cell(170, 25, txt = notes, border = 1)
+            pdf.set_font("Arial", "B", 8)
+            pdf.multi_cell(170, 25, txt = notes, border = 1)
 
 
     pdf.output('HomeLoanOffer.pdf', 'F')
@@ -218,6 +220,7 @@ def dob_from_age(age: int, as_of: date | None = None) -> date:
         # Handles Feb 29
         return as_of.replace(month=2, day=28, year=as_of.year - age)
 
+
 def calculate_age(dob, today=None):
     if today is None:
         today = date.today()
@@ -256,6 +259,7 @@ if "initialized" not in st.session_state:
         if v not in ("", None)
     }
     ####################################
+
 
 
     def load_param_once(key, default=None, cast=None):
@@ -336,14 +340,14 @@ if "initialized" not in st.session_state:
     load_param_once("HomePhone2")
     load_param_once("Email2")
 
-    load_param_once("home_value", cast=int)
+    load_param_once("home_value", cast=int, default = 0)
 
-    load_param_once("zillow_estimate", cast=int)
-    load_param_once("redfinn_estimate", cast=int)
+    load_param_once("zillow_estimate", cast=int, default = 0)
+    load_param_once("redfinn_estimate", cast=int, default = 0)
 
-    load_param_once("line_of_credit", cast=int)
-    load_param_once("property_tax", cast=int)
-    load_param_once("existing_loan", cast=int)
+    load_param_once("line_of_credit", cast=int, default = 0)
+    load_param_once("property_tax", cast=int, default = 0)
+    load_param_once("existing_loan", cast=int, default = 0)
 
     load_param_once(
         "existing_loan_date",
@@ -351,8 +355,8 @@ if "initialized" not in st.session_state:
         default = date(1900, 1, 1)
     )
 
-    load_param_once("existing_loan_interest", cast=float)
-    load_param_once("new_interest", cast=float)
+    load_param_once("existing_loan_interest", cast=float, default = 0)
+    load_param_once("new_interest", cast=float, default = 0)
 
     load_param_once("Loan1LenderName")
     load_param_once("Loan1FinancingType")
@@ -504,6 +508,7 @@ zillow_estimate    = right.number_input("Zillow Estimate ($)"  , min_value=0.0, 
 redfinn_estimate   = corner.number_input("Redfinn Estimate ($)", min_value=0.0, format="%.2f", key = "redfinn_estimate")
 
 
+
 left, right, x = st.columns(3)
 line_of_credit = left.number_input("Line of Credit ($)", min_value=0.0, format="%.2f", key = "line_of_credit")
 Property_Tax   = right.number_input("Annual Property Tax Amount ($)", min_value=0.0, format="%.2f", key = "property_tax")
@@ -619,14 +624,14 @@ if plf_value:
     st.markdown("-----------")
 
     a,b,c,d = st.columns(4)
-    if home_value is None:
-        home_value = 0
-    if existing_loan is None:
-        existing_loan = 0
-    if line_of_credit is None:
-        line_of_credit = 0
 
-    
+    # if home_value is None:
+    #     home_value = 0
+    # if existing_loan is None:
+    #     existing_loan = 0
+    # if line_of_credit is None:
+    #     line_of_credit = 0
+
     principal_limit = home_value * plf_value
 
     total_proceeds = principal_limit - existing_loan + line_of_credit
@@ -649,10 +654,14 @@ if plf_value:
     if "Adj. Proceeds" not in st.session_state:
         st.session_state["Adj. Proceeds"] = None
 
-    try: delta = st.session_state["Adj. Proceeds"] - line_of_credit
+    # try: delta = st.session_state["Adj. Proceeds"] - line_of_credit
+    # except: delta = None
+
+    try: delta = avail_proceeds - line_of_credit
     except: delta = None
 
-    d.metric("Current Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
+
+    d.metric("Avail. Proceed $", show_value(avail_proceeds), delta = show_value(delta), width="content")
 
     a,b,c,d = st.columns(4)
     a.metric("PL_Utilised %", show_value(PL_Utilised, "%"), width="content")
@@ -673,7 +682,6 @@ if plf_value:
     # ### PREPARING FEE
     total_fee_charge, fee_applied, adj_avail_proceeds = prepare_fee(df_selected, "11", orgin_fee_pre, fixed_fee_pre)
     st.session_state["Adj. Proceeds"] = adj_avail_proceeds
-
 
 
     cols_to_drop = ["Offer", "Min_PL", "Min Fee", "Max Fee"]
@@ -751,10 +759,7 @@ if plf_value:
     generate = left.button("Export PDF", key='generate_jumbo')
 
     if generate:
-        for each in (st.session_state):
-            print(each)
 
-        print("-----")
         pdf = create_pdf(borrowers[0], borrowers[1], selected_program, f"{plf_value*100:.2f}%", show_value(principal_limit, "$"), show_value(avail_proceeds, "$"), 
                          show_value(delta, "$"), show_value(PL_Utilised, "%"), selected_program, df, today.strftime("%m/%d/%Y"), 
                          show_value(home_value,"$"), show_value(existing_loan,"$"), show_value(line_of_credit,"$"), show_value(current_interest/100, "%"),

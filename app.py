@@ -619,7 +619,14 @@ if plf_value:
     st.markdown("-----------")
 
     a,b,c,d = st.columns(4)
+    if home_value is None:
+        home_value = 0
+    if existing_loan is None:
+        existing_loan = 0
+    if line_of_credit is None:
+        line_of_credit = 0
 
+    
     principal_limit = home_value * plf_value
 
     total_proceeds = principal_limit - existing_loan + line_of_credit

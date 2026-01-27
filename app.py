@@ -192,7 +192,7 @@ st.set_page_config(page_title="Reverse Mortgage Calculator", layout="wide")
 
 
 def download_excel():
-
+    print("Downloading It")
     url = "https://github.com/lavi06/reverse_mortgage/raw/refs/heads/main/MOOM.xlsx"
 
     response = requests.get(url)
@@ -201,35 +201,6 @@ def download_excel():
 
     return master_moom_file
 
-    # dfs = pd.read_excel(response.content, sheet_name=None)   # returns a dict of DataFrames
-    # # dfs = pd.read_excel("MOOM.xlsx",  sheet_name=None)
-
-    # DB_fixed_rate  = dfs["SecureEquity"]
-    # DB_ARM         = dfs["ARM"]
-    # DB_HECM5       = dfs["HECM"]
-    # DB_HECM_Fixed  = dfs["HECM_Fixed"]
-
-    # ##############################
-    # # pfl_chart = pd.read_excel("PFL.xlsx")
-    # pfl_chart = dfs["PLF"]
-    # hecm_plf = pfl_chart[["AGE", "HECM"]]
-    # hecm_plf.columns = ["AGE", "PLF"]
-
-    # jumbo_plf = pfl_chart[["AGE", "Jumbo"]]
-    # jumbo_plf.columns = ["AGE", "PLF"]
-    # ##############################
-
-    # return DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf
-
-
-
-# DB_fixed_rate, DB_ARM, DB_HECM5, DB_HECM_Fixed, hecm_plf, jumbo_plf = download_excel()
-
-# master_moom_file = pd.read_excel("MOOM.xlsx",  sheet_name=None)
-master_moom_file = download_excel()
-
-config = master_moom_file["Config"]
-plf_master = master_moom_file["PLF"]
 
 
 
@@ -265,120 +236,137 @@ def calculate_age(dob, today=None):
     return years, months
 
 
-# params = st.query_params
-params = st.query_params.to_dict()
-
-params = {
-    k: v for k, v in params.items()
-    if v not in ("", None)
-}
 
 
-def load_param_once(key, default=None, cast=None):
-    if key not in st.session_state:
-        val = params.get(key, default)
-        if val in ("", None):
-            st.session_state[key] = default
-        else:
-            try:
-                st.session_state[key] = cast(val) if cast else val
-            except:
+if "initialized" not in st.session_state:
+
+    master_moom_file = download_excel()
+
+    config = master_moom_file["Config"]
+    plf_master = master_moom_file["PLF"]
+
+    st.session_state["master_moom_file"] = master_moom_file 
+    st.session_state["config"] = config 
+    st.session_state["plf_master"] = plf_master 
+
+    ####################################
+    params = st.query_params.to_dict()
+    params = {
+        k: v for k, v in params.items()
+        if v not in ("", None)
+    }
+    ####################################
+
+
+    def load_param_once(key, default=None, cast=None):
+        if key not in st.session_state:
+            val = params.get(key, default)
+            if val in ("", None):
                 st.session_state[key] = default
+            else:
+                try:
+                    st.session_state[key] = cast(val) if cast else val
+                except:
+                    st.session_state[key] = default
 
 
-load_param_once("APN")
-load_param_once("Borrower1FName")
-load_param_once("Borrower1LName")
+    load_param_once("APN")
+    load_param_once("Borrower1FName")
+    load_param_once("Borrower1LName")
+
+
+    if "AGE1" not in st.session_state:
+        if "AGE1" in params:
+            st.session_state["Toggle1"] = True
+            st.session_state["AGE1"] = int(params.get("AGE1", 0))
+            st.session_state["DOB1"] = dob_from_age(st.session_state["AGE1"])
+
+
+    if "DOB1" not in st.session_state:
+        if "DOB1" in params:
+            st.session_state["Toggle1"] = False
+            load_param_once("DOB1", cast=lambda x: date.fromisoformat(x))
+            try:
+                aa,bb = calculate_age(st.session_state["DOB1"], date.today())
+                st.session_state["AGE1"] = aa
+                st.session_state["AGE_MONTH1"] = bb
+            except:
+                pass
+        else:
+            st.session_state["DOB1"] = date(1900, 1, 1)
+
+
+    # load_param_once("AGE1", cast=int)
+    load_param_once("Address1")
+    load_param_once("City1")
+    load_param_once("State1")
+    load_param_once("Zipcode1")
+    load_param_once("Mobile1")
+    load_param_once("HomePhone1")
+    load_param_once("Email1")
 
 
 
-if "AGE1" not in st.session_state:
-    if "AGE1" in params:
-        st.session_state["Toggle1"] = True
-        st.session_state["AGE1"] = int(params.get("AGE1", 0))
-        st.session_state["DOB1"] = dob_from_age(st.session_state["AGE1"])
+    load_param_once("Borrower2FName")
+    load_param_once("Borrower2LName")
+    if "AGE2" not in st.session_state:
+        if "AGE2" in params:
+            st.session_state["Toggle2"] = True
+            st.session_state["AGE2"] = int(params.get("AGE2", 0))
+            st.session_state["DOB2"] = dob_from_age(st.session_state["AGE2"])
+
+    if "DOB2" not in st.session_state:
+        if "DOB2" in params:
+            st.session_state["Toggle2"] = False
+            load_param_once("DOB2", cast=lambda x: date.fromisoformat(x))
+            try:
+                aa, bb = calculate_age(st.session_state["DOB2"], date.today())
+                st.session_state["AGE2"] = aa
+                st.session_state["AGE_MONTH2"] = bb
+            except:
+                pass
+        else:
+            st.session_state["DOB2"] = date(1900, 1, 1)
+
+    load_param_once("Address2")
+    load_param_once("City2")
+    load_param_once("State2")
+    load_param_once("Zipcode2")
+    load_param_once("Mobile2")
+    load_param_once("HomePhone2")
+    load_param_once("Email2")
+
+    load_param_once("home_value", cast=int)
+
+    load_param_once("zillow_estimate", cast=int)
+    load_param_once("redfinn_estimate", cast=int)
+
+    load_param_once("line_of_credit", cast=int)
+    load_param_once("property_tax", cast=int)
+    load_param_once("existing_loan", cast=int)
+
+    load_param_once(
+        "existing_loan_date",
+        cast=lambda x: date.fromisoformat(x),
+        default = date(1900, 1, 1)
+    )
+
+    load_param_once("existing_loan_interest", cast=float)
+    load_param_once("new_interest", cast=float)
+
+    load_param_once("Loan1LenderName")
+    load_param_once("Loan1FinancingType")
+    load_param_once("ProductType_Flag")
+
+    load_param_once("NOTES")
+
+    st.session_state.initialized = True
 
 
-if "DOB1" not in st.session_state:
-    if "DOB1" in params:
-        st.session_state["Toggle1"] = False
-        load_param_once("DOB1", cast=lambda x: date.fromisoformat(x))
-        try:
-            aa = calculate_age(st.session_state["DOB1"], date.today())
-            st.session_state["AGE1"] = aa
-        except:
-            pass
-    else:
-        st.session_state["DOB1"] = date(1900, 1, 1)
+master_moom_file = st.session_state["master_moom_file"]
+config = st.session_state["config"] 
+plf_master = st.session_state["plf_master"]
 
-
-# load_param_once("AGE1", cast=int)
-load_param_once("Address1")
-load_param_once("City1")
-load_param_once("State1")
-load_param_once("Zipcode1")
-load_param_once("Mobile1")
-load_param_once("HomePhone1")
-load_param_once("Email1")
-
-
-
-load_param_once("Borrower2FName")
-load_param_once("Borrower2LName")
-if "AGE2" not in st.session_state:
-    if "AGE2" in params:
-        st.session_state["Toggle2"] = True
-        st.session_state["AGE2"] = int(params.get("AGE2", 0))
-        st.session_state["DOB2"] = dob_from_age(st.session_state["AGE2"])
-
-if "DOB2" not in st.session_state:
-    if "DOB2" in params:
-        st.session_state["Toggle2"] = False
-        load_param_once("DOB2", cast=lambda x: date.fromisoformat(x))
-        try:
-            aa = calculate_age(st.session_state["DOB2"], date.today())
-            st.session_state["AGE2"] = aa
-        except:
-            pass
-    else:
-        st.session_state["DOB2"] = date(1900, 1, 1)
-
-load_param_once("Address2")
-load_param_once("City2")
-load_param_once("State2")
-load_param_once("Zipcode2")
-load_param_once("Mobile2")
-load_param_once("HomePhone2")
-load_param_once("Email2")
-
-load_param_once("home_value", cast=int)
-
-load_param_once("zillow_estimate", cast=int)
-load_param_once("redfinn_estimate", cast=int)
-
-load_param_once("line_of_credit", cast=int)
-load_param_once("property_tax", cast=int)
-load_param_once("existing_loan", cast=int)
-
-load_param_once(
-    "existing_loan_date",
-    cast=lambda x: date.fromisoformat(x),
-    default = date(1900, 1, 1)
-)
-
-load_param_once("existing_loan_interest", cast=float)
-load_param_once("new_interest", cast=float)
-
-load_param_once("Loan1LenderName")
-load_param_once("Loan1FinancingType")
-load_param_once("ProductType_Flag")
-
-load_param_once("NOTES")
-
-
-for each in st.session_state:
-    print(each, st.session_state[each])
-    print("---")
 
 
 def get_cmt():
@@ -447,7 +435,6 @@ for i in range(int(num_borrowers)):
             age_year  = left.number_input("Years"  ,min_value=0 ,max_value=120 ,step=1 ,format="%d", key = f"AGE{i+1}")
             age_month = right.number_input("Months",min_value=0 ,max_value=12 ,step=1 ,format="%d", key=f"AGE_MONTH{i+1}")
 
-
             dob = "-"
             age = [age_year, age_month]
 
@@ -488,9 +475,6 @@ for i in range(int(num_borrowers)):
             "Email" : email
             })
 
-print(json.dumps(borrowers, indent = 3))
-
-
 
 if borrowers:
 
@@ -507,8 +491,6 @@ if borrowers:
     else:
         st.error("Enter DOB for atleast 1 Borrower")
 
-
-print(json.dumps(youngest_borrower, indent = 3))
 
 # # --- Home details ---
 # st.header("🏡 Property Details")
